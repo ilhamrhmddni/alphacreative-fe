@@ -72,8 +72,16 @@ export default function DashboardPage() {
       return;
     }
 
+    // Use AbortController to cancel requests on unmount or logout
+    const abortController = new AbortController();
+
     async function fetchStats() {
       try {
+        // Check if component is still mounted and user still exists
+        if (abortController.signal.aborted || !user?.role) {
+          return;
+        }
+
         setError("");
         setLoading(true);
 
@@ -81,19 +89,31 @@ export default function DashboardPage() {
           user?.role === "admin" || user?.role === "operator";
 
         const userPromise = canFetchUsers
-          ? get("/users")
+          ? get("/users").catch((err) => {
+            if (err.status === 401 || err.status === 403) {
+              console.warn("Unauthorized fetch users, likely logged out");
+              return [];
+            }
+            throw err;
+          })
           : Promise.resolve([]);
 
         const scopedEventId = operatorFocusEventId || null;
 
         const pesertaPromise = (() => {
           if (operatorFocusEventId) {
-            return get(`/peserta?eventId=${operatorFocusEventId}`);
+            return get(`/peserta?eventId=${operatorFocusEventId}`).catch((err) => {
+              if (err.status === 401 || err.status === 403) return [];
+              throw err;
+            });
           }
           if (isJuri) {
             return Promise.resolve([]);
           }
-          return get("/peserta");
+          return get("/peserta").catch((err) => {
+            if (err.status === 401 || err.status === 403) return [];
+            throw err;
+          });
         })();
 
         const scoresUrl = scopedEventId
@@ -104,26 +124,44 @@ export default function DashboardPage() {
           : "/juara";
 
         const scoresPromise = SCORE_FEATURE_ENABLED
-          ? get(scoresUrl)
+          ? get(scoresUrl).catch((err) => {
+            if (err.status === 401 || err.status === 403) return [];
+            throw err;
+          })
           : Promise.resolve([]);
 
         const [events, peserta, berita, users, scores, juara, merchandise, partnerships, gallery] =
           await Promise.all([
-            get("/events"),
+            get("/events").catch((err) => {
+              if (err.status === 401 || err.status === 403) {
+                console.warn("Unauthorized, likely logged out");
+                return [];
+              }
+              throw err;
+            }),
             pesertaPromise,
-            get("/berita"),
+            get("/berita").catch((err) => {
+              if (err.status === 401 || err.status === 403) return [];
+              throw err;
+            }),
             userPromise,
             scoresPromise,
-            get(juaraUrl),
+            get(juaraUrl).catch((err) => {
+              if (err.status === 401 || err.status === 403) return [];
+              throw err;
+            }),
             get("/merchandise").catch((err) => {
+              if (err.status === 401 || err.status === 403) return [];
               console.error('Failed to fetch merchandise:', err);
               return [];
             }),
             get("/partnerships").catch((err) => {
+              if (err.status === 401 || err.status === 403) return [];
               console.error('Failed to fetch partnerships:', err);
               return [];
             }),
             get("/gallery").catch((err) => {
+              if (err.status === 401 || err.status === 403) return [];
               console.error('Failed to fetch gallery:', err);
               return [];
             }),
@@ -178,6 +216,12 @@ export default function DashboardPage() {
         setPartnershipsData(partnershipsList);
         setGalleryData(galleryList);
       } catch (err) {
+        // Don't show error if it's just a logout (403/401)
+        if (err.status === 401 || err.status === 403) {
+          console.info("Session expired or unauthorized, redirecting to login");
+          router.push("/auth/login");
+          return;
+        }
         console.error(err);
         setError(err.message || "Gagal memuat data dashboard");
       } finally {
@@ -186,6 +230,11 @@ export default function DashboardPage() {
     }
 
     fetchStats();
+
+    // Cleanup function to abort requests when component unmounts or user logs out
+    return () => {
+      abortController.abort();
+    };
   }, [initializing, user, router, operatorFocusEventId]);
 
   useEffect(() => {
