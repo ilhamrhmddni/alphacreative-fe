@@ -368,7 +368,7 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
             Detail Lengkap
           </Button>
           
-          {isRegistered ? (
+          {isRegistered && registration.status !== "approved" ? (
             <Button
               onClick={() => onCancel(registration)}
               variant="outline"
@@ -378,7 +378,7 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
               <X className="mr-1.5 h-3.5 w-3.5" />
               Batalkan
             </Button>
-          ) : (
+          ) : !isRegistered ? (
             <Button
               onClick={() => onRegister(event)}
               size="sm"
