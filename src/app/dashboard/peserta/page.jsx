@@ -172,7 +172,16 @@ export default function PesertaPage() {
   const lengkapCount =
     peserta.filter((item) => (item.detailPeserta?.length || 0) > 0).length;
   const eventCount = new Set(peserta.map((item) => item.eventId)).size;
-  const participantTeams = isParticipant ? peserta : [];
+  
+  // For participants, filter teams based on selected event
+  const participantTeams = useMemo(() => {
+    if (!isParticipant) return [];
+    if (eventFilter === "all") return [];
+    
+    const eventId = parseInt(eventFilter, 10);
+    return peserta.filter((team) => team.eventId === eventId);
+  }, [isParticipant, peserta, eventFilter]);
+  
   const totalParticipantMembers = participantTeams.reduce(
     (sum, team) => sum + (team.detailPeserta?.length || 0),
     0
