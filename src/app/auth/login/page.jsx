@@ -53,7 +53,7 @@ export default function LoginPage() {
         <CardContent>
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-500">Email</label>
+              <label className="text-sm font-medium text-muted-foreground">Email</label>
               <Input
                 type="email"
                 required
@@ -64,7 +64,7 @@ export default function LoginPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-500">Password</label>
+              <label className="text-sm font-medium text-muted-foreground">Password</label>
               <Input
                 type="password"
                 required
@@ -89,12 +89,12 @@ export default function LoginPage() {
               </Link>
             </Button>
 
-            <p className="text-center text-xs text-slate-500">
+            <p className="text-center text-xs text-muted-foreground">
               Belum punya akun?{" "}
               <Button
                 type="button"
                 variant="link"
-                className="p-0 h-auto text-slate-900"
+                className="p-0 h-auto text-foreground"
                 onClick={() => router.push("/auth/register")}
               >
                 Daftar

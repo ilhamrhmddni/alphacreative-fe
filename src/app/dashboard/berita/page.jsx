@@ -22,22 +22,7 @@ import {
 
 import { NewsTable } from "@/components/tables/news-table";
 import NewsFormDialog from "@/components/form/news-form-dialog";
-
-function normalizeNewsData(payload) {
-  if (Array.isArray(payload)) {
-    return payload;
-  }
-
-  if (payload && Array.isArray(payload.data)) {
-    return payload.data;
-  }
-
-  if (payload && Array.isArray(payload.items)) {
-    return payload.items;
-  }
-
-  return [];
-}
+import { normalizeApiResponse } from "@/utils/parsers";
 
 export default function BeritaPage() {
   const router = useRouter();
@@ -70,7 +55,7 @@ export default function BeritaPage() {
       setLoading(true);
       setError("");
       const data = await get("/berita");
-      setNews(normalizeNewsData(data));
+      setNews(normalizeApiResponse(data));
     } catch (err) {
       console.error(err);
       setError(err.message || "Gagal memuat berita");
@@ -229,7 +214,7 @@ export default function BeritaPage() {
 
   if (initializing || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Memeriksa sesi...
       </div>
     );
@@ -244,14 +229,14 @@ export default function BeritaPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 px-4 py-4 sm:px-6">
+        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
                   Berita & Pengumuman
                 </CardTitle>
-                <CardDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+                <CardDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {totalNews > 0
                     ? `${totalNews} berita tersimpan di database`
                     : "Belum ada berita. Tambahkan informasi untuk publik."}
@@ -273,15 +258,15 @@ export default function BeritaPage() {
                     placeholder="Cari judul atau isi berita..."
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
-                    className="h-9 w-full rounded-md border-slate-200 bg-white text-xs placeholder:text-slate-400 sm:text-sm"
+                    className="h-9 w-full rounded-md border-border bg-background text-xs placeholder:text-muted-foreground sm:text-sm"
                   />
                 </div>
                 <div className="flex gap-2 w-full flex-wrap">
                   <Select value={yearFilter} onValueChange={setYearFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 bg-white text-xs sm:w-[180px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border bg-background text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua tahun" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-background shadow-md">
                       <SelectItem value="all">Semua tahun</SelectItem>
                       {yearOptions.map((year) => (
                         <SelectItem key={year} value={year}>
@@ -318,11 +303,11 @@ export default function BeritaPage() {
             </div>
 
             {error && (
-              <p className="text-[11px] text-red-500">{error}</p>
+              <p className="text-[11px] text-destructive">{error}</p>
             )}
 
             {filtered.length !== totalNews && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Menampilkan{" "}
                 <span className="font-medium">{filtered.length}</span> dari{" "}
                 <span className="font-medium">{totalNews}</span> berita.
@@ -368,12 +353,12 @@ function isSameMonth(dateLike) {
 function StatPill({ label, value, color }) {
   let base =
     "inline-flex flex-col justify-center rounded-md border px-2.5 py-1 min-w-[60px]";
-  let tone = "bg-slate-50 text-slate-800 border-slate-200";
+  let tone = "bg-muted text-muted-foreground border-border";
 
   if (color === "emerald") {
-    tone = "bg-emerald-50 text-emerald-800 border-emerald-200";
+    tone = "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800";
   } else if (color === "amber") {
-    tone = "bg-amber-50 text-amber-800 border-amber-200";
+    tone = "bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border-amber-200 dark:border-amber-800";
   }
 
   return (
@@ -393,30 +378,30 @@ function NewsReader({ item, loading }) {
 
   if (!item) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+      <div className="rounded-xl border border-dashed border-border bg-muted px-4 py-5 text-sm text-muted-foreground">
         Pilih salah satu berita untuk melihat isi lengkapnya.
       </div>
     );
   }
 
   return (
-    <article className="rounded-xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
-      <p className="text-xs uppercase tracking-wide text-slate-400">
+    <article className="rounded-xl border border-border bg-card px-5 py-5 shadow-sm">
+      <p className="text-xs uppercase tracking-wide text-muted-foreground">
         Dipublikasikan pada {formatDate(item.tanggal)}
       </p>
-      <h3 className="mt-1 text-xl font-semibold text-slate-900">
+      <h3 className="mt-1 text-xl font-semibold text-foreground">
         {item.title}
       </h3>
       {item.event?.namaEvent && (
-        <p className="mt-0.5 text-xs text-slate-500">
-          Bagian dari event <span className="font-semibold text-slate-800">{item.event.namaEvent}</span>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          Bagian dari event <span className="font-semibold text-foreground">{item.event.namaEvent}</span>
           {item.event.tanggalEvent
             ? ` • ${formatDate(item.event.tanggalEvent)}`
             : ""}
         </p>
       )}
       {item.photoPath && (
-        <div className="mt-3 overflow-hidden rounded-lg border border-slate-100">
+        <div className="mt-3 overflow-hidden rounded-lg border border-border">
           <img
             src={item.photoPath}
             alt={item.title}
@@ -424,7 +409,7 @@ function NewsReader({ item, loading }) {
           />
         </div>
       )}
-      <p className="mt-4 text-sm leading-relaxed text-slate-700 whitespace-pre-line">
+      <p className="mt-4 text-sm leading-relaxed text-foreground whitespace-pre-line">
         {item.deskripsi}
       </p>
       {Array.isArray(item.tags) && item.tags.length > 0 && (
@@ -432,7 +417,7 @@ function NewsReader({ item, loading }) {
           {item.tags.map((tag) => (
             <span
               key={tag}
-              className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-600"
+              className="inline-flex items-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-medium text-muted-foreground"
             >
               #{tag}
             </span>

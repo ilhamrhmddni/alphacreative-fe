@@ -3,9 +3,9 @@ import Link from "next/link";
 
 export function Footer() {
   return (
-    <footer className="border-t border-border px-6 py-12">
+    <footer className="border-t border-border px-4 py-8 sm:px-6 sm:py-12">
       <div className="container mx-auto max-w-6xl">
-        <div className="mb-12 grid grid-cols-1 gap-8 md:grid-cols-4">
+        <div className="mb-8 sm:mb-12 grid grid-cols-1 gap-6 sm:gap-8 md:grid-cols-4">
           <div className="md:col-span-2">
             <div className="mb-4 flex items-center">
               <div className="relative h-10 w-56 md:h-12 md:w-64">
@@ -36,8 +36,13 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link className="transition-colors hover:text-foreground" href="/#dokumentasi">
-                  Dokumentasi
+                <Link className="transition-colors hover:text-foreground" href="/gallery">
+                  Galeri
+                </Link>
+              </li>
+              <li>
+                <Link className="transition-colors hover:text-foreground" href="/merchandise">
+                  Merchandise
                 </Link>
               </li>
             </ul>

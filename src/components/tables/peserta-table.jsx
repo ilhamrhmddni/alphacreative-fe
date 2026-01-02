@@ -25,10 +25,10 @@ import { formatDate } from "@/lib/formatters";
 
 function Badge({ children, variant = "default" }) {
   const variants = {
-    default: "bg-slate-100 text-slate-600 border-slate-200",
-    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    rose: "bg-rose-50 text-rose-700 border-rose-200",
+    default: "bg-muted text-muted-foreground border-border",
+    emerald: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
+    amber: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
+    rose: "bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800",
   };
 
   return (
@@ -61,7 +61,7 @@ export function PesertaTable({
 
   if (!hasData) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-slate-500">
+      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
         Belum ada peserta terdaftar. Tambahkan peserta baru atau undang tim
         untuk mengikuti event.
       </div>
@@ -75,25 +75,30 @@ export function PesertaTable({
         {items.map((peserta, idx) => (
           <div
             key={peserta.id}
-            className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
+            className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-1">
-                <p className="text-base font-semibold text-slate-900">
+                <p className="text-base font-semibold text-foreground">
                   {peserta.namaTim}
                 </p>
-                <span className="text-xs text-slate-500">
+                <span className="text-xs text-muted-foreground">
                   {peserta.event?.namaEvent || "Event tidak diketahui"}
                 </span>
+                {peserta.eventCategory?.name && (
+                  <span className="text-[11px] text-muted-foreground">
+                    Kategori: {peserta.eventCategory.name}
+                  </span>
+                )}
                 {peserta.noPeserta && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
+                  <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                     <IdCard className="h-3 w-3" />
                     {peserta.noPeserta}
                   </span>
                 )}
               </div>
               <div className="text-right space-y-1">
-                <span className="text-[11px] font-semibold text-slate-400">
+                <span className="text-[11px] font-semibold text-muted-foreground/60">
                   No. {startIndex + idx}
                 </span>
                 {renderStatus(peserta.status)}
@@ -107,12 +112,11 @@ export function PesertaTable({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 gap-1 text-xs text-slate-500">
+            <div className="grid grid-cols-1 gap-1 text-xs text-muted-foreground">
               <div className="flex items-center gap-1">
                 <UserCircle2 className="h-3.5 w-3.5" />
                 <span>
-                  {peserta.namaPerwakilan || "-"} •{" "}
-                  {peserta.user?.email || "User tidak diketahui"}
+                  {peserta.namaPerwakilan || "-"}
                 </span>
               </div>
               <div className="flex items-center gap-1">
@@ -131,13 +135,13 @@ export function PesertaTable({
                 Buka link drive
               </a>
             ) : (
-              <p className="text-[11px] text-slate-400">Belum ada link drive</p>
+              <p className="text-[11px] text-muted-foreground/60">Belum ada link drive</p>
             )}
             {canEdit && (
               <div className="flex flex-col gap-3 pt-2">
                 {onChangeStatus && (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground/60">
                       Konfirmasi pembayaran
                     </p>
                     <div className="mt-1">
@@ -166,10 +170,10 @@ export function PesertaTable({
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Hapus peserta?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-sm text-slate-600">
+                    <AlertDialogContent className="rounded-xl border border-border bg-card">
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Hapus peserta?</AlertDialogTitle>
+                          <AlertDialogDescription className="text-sm text-muted-foreground">
                           Tim <b>{peserta.namaTim}</b> akan dihapus beserta
                           partisipasi terkait.
                         </AlertDialogDescription>
@@ -197,12 +201,11 @@ export function PesertaTable({
         <div className="w-full overflow-x-auto py-1">
           <Table className="w-full whitespace-nowrap">
             <TableHeader>
-              <TableRow className="border-b bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <TableRow className="border-b bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <TableHead className="w-[6%] px-4 py-3 text-center">No</TableHead>
                 <TableHead className="w-[24%] px-4 py-3">Tim</TableHead>
-                <TableHead className="w-[20%] px-4 py-3">Event</TableHead>
+                <TableHead className="w-[20%] px-4 py-3">Event / Kategori</TableHead>
                 <TableHead className="w-[16%] px-4 py-3">Perwakilan</TableHead>
-                <TableHead className="w-[16%] px-4 py-3">User</TableHead>
                 <TableHead className="w-[14%] px-4 py-3 text-center">
                   Status
                 </TableHead>
@@ -227,48 +230,45 @@ export function PesertaTable({
                 )}
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 bg-white">
+            <TableBody className="divide-y divide-border">
               {items.map((peserta, idx) => (
                 <TableRow
                   key={peserta.id}
-                  className="text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                  className="text-sm text-foreground transition-colors hover:bg-muted/50"
                 >
-                  <TableCell className="px-4 py-3 text-center text-xs font-semibold text-slate-500">
+                  <TableCell className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">
                     {startIndex + idx}
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top">
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-semibold text-foreground">
                       {peserta.namaTim}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {peserta.noPeserta ? `No. ${peserta.noPeserta}` : "-"}
                     </p>
                   </TableCell>
-                <TableCell className="px-4 py-3 align-top text-xs text-slate-600">
-                  <p className="font-medium text-sm text-slate-900">
+                  <TableCell className="px-4 py-3 align-top text-xs text-muted-foreground">
+                    <p className="font-medium text-sm text-foreground">
                       {peserta.event?.namaEvent || "Event tidak diketahui"}
-                  </p>
-                    <p className="text-xs text-slate-500">
-                      {peserta.event?.kategori || "Umum"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {peserta.eventCategory?.name || "Tanpa kategori"}
                     </p>
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-xs text-slate-600">
-                    <p className="font-medium text-slate-900">
+                  <TableCell className="px-4 py-3 align-top text-xs text-muted-foreground">
+                    <p className="font-medium text-foreground">
                       {peserta.namaPerwakilan || "-"}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {peserta.user?.username || "-"}
                     </p>
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-xs text-slate-600">
-                    <p>{peserta.user?.email || "User tidak diketahui"}</p>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-center text-xs text-slate-500">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs text-muted-foreground">
                     <div className="flex flex-col items-center gap-1">
                       {renderStatus(peserta.status)}
                     </div>
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-center text-xs text-slate-500">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs text-muted-foreground">
                     {peserta.detailPeserta?.length ? (
                       <Badge variant="emerald">
                         {peserta.detailPeserta.length} anggota
@@ -277,7 +277,7 @@ export function PesertaTable({
                       <Badge>Belum isi</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-center text-xs text-slate-600">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs text-muted-foreground">
                     {peserta.partisipasi?.linkDrive ? (
                       <Button
                         asChild
@@ -295,12 +295,12 @@ export function PesertaTable({
                         </a>
                       </Button>
                     ) : (
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-[11px] text-muted-foreground">
                         Belum ada link
                       </span>
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-center text-xs text-slate-600">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs text-muted-foreground">
                     {formatDate(peserta.tanggalPendaftaran)}
                   </TableCell>
                   {canEdit && (
@@ -333,12 +333,12 @@ export function PesertaTable({
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+                          <AlertDialogContent className="rounded-xl border border-border bg-card">
                             <AlertDialogHeader>
                               <AlertDialogTitle>
                                 Hapus peserta?
                               </AlertDialogTitle>
-                              <AlertDialogDescription className="text-sm text-slate-600">
+                              <AlertDialogDescription className="text-sm text-muted-foreground">
                                 Aksi ini akan menghapus data peserta dari
                                 event.
                               </AlertDialogDescription>
@@ -375,23 +375,23 @@ function TableSkeleton() {
         {rows.map((_, idx) => (
           <div
             key={`mobile-skeleton-${idx}`}
-            className="rounded-xl border border-slate-100 bg-slate-50 p-3"
+            className="rounded-xl border border-border bg-muted p-3"
           >
-            <div className="h-4 w-2/3 rounded bg-slate-200" />
-            <div className="mt-2 h-3 w-1/3 rounded bg-slate-200" />
-            <div className="mt-2 h-3 w-1/2 rounded bg-slate-200" />
+            <div className="h-4 w-2/3 rounded bg-muted" />
+            <div className="mt-2 h-3 w-1/3 rounded bg-muted" />
+            <div className="mt-2 h-3 w-1/2 rounded bg-muted" />
           </div>
         ))}
       </div>
 
       <div className="hidden w-full overflow-x-auto sm:block">
         <table className="w-full">
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {rows.map((_, idx) => (
               <tr key={`desktop-skeleton-${idx}`} className="animate-pulse">
                 {Array.from({ length: 9 }).map((__, colIdx) => (
                   <td key={colIdx} className="px-4 py-3">
-                    <div className="h-4 rounded bg-slate-200" />
+                    <div className="h-4 rounded bg-muted" />
                   </td>
                 ))}
               </tr>
@@ -409,7 +409,7 @@ function renderStatus(status) {
     pending: "bg-amber-50 text-amber-700 border-amber-200",
     approved: "bg-emerald-50 text-emerald-700 border-emerald-200",
     rejected: "bg-rose-50 text-rose-700 border-rose-200",
-    unregistered: "bg-slate-100 text-slate-600 border-slate-200",
+    unregistered: "bg-muted text-muted-foreground border-border",
   };
   const labelMap = {
     pending: "Menunggu",
@@ -440,8 +440,8 @@ function renderStatusActions(item, canEdit, onChangeStatus) {
 
   const baseClasses =
     "h-7 rounded-full border text-[12px] font-semibold transition-colors";
-  const pendingClasses = "border-emerald-500 text-emerald-600 bg-white hover:bg-emerald-50";
-  const approvedClasses = "border-rose-500 text-rose-600 bg-white hover:bg-rose-50";
+  const pendingClasses = "border-emerald-500 text-emerald-600 bg-card hover:bg-emerald-50";
+  const approvedClasses = "border-rose-500 text-rose-600 bg-card hover:bg-rose-50";
 
   return (
     <AlertDialog>
@@ -455,10 +455,10 @@ function renderStatusActions(item, canEdit, onChangeStatus) {
           {label}
         </Button>
       </AlertDialogTrigger>
-      <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+      <AlertDialogContent className="rounded-xl border border-border bg-card">
         <AlertDialogHeader>
           <AlertDialogTitle>Anda yakin?</AlertDialogTitle>
-          <AlertDialogDescription className="text-sm text-slate-600">
+          <AlertDialogDescription className="text-sm text-muted-foreground">
             {description}
           </AlertDialogDescription>
         </AlertDialogHeader>

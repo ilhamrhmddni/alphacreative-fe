@@ -34,8 +34,37 @@ import {
 
 import { ScoreTable } from "@/components/tables/score-table";
 import ScoreFormDialog from "@/components/form/score-form-dialog";
+import {
+  calculateDetailScore,
+  formatScoreDisplay,
+  resolveScoreValue,
+} from "@/lib/utils";
+
+const SCORE_PAGE_ENABLED = false;
 
 export default function ScoresPage() {
+  if (!SCORE_PAGE_ENABLED) {
+    return (
+      <div className="min-h-screen">
+        <main className="container mx-auto px-3 py-6 sm:px-4 lg:px-6">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-foreground">
+                Penilaian dinonaktifkan sementara
+              </CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Admin sedang menonaktifkan modul score. Hubungi admin bila memerlukan akses.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Data score lama tetap tersimpan, namun halaman ini tidak dapat digunakan sampai fitur diaktifkan kembali.
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   const router = useRouter();
   const { user, initializing } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
@@ -69,7 +98,7 @@ export default function ScoresPage() {
   }, [initializing, user, router]);
 
   const fetchScores = useCallback(async () => {
-    if (!user || initializing) return;
+    if (!user || initializing) return null;
     try {
       setLoading(true);
       setError("");
@@ -78,9 +107,11 @@ export default function ScoresPage() {
         : "/scores";
       const data = await get(endpoint);
       setScores(data);
+      return data;
     } catch (err) {
       console.error(err);
       setError(err.message || "Gagal memuat score");
+      return null;
     } finally {
       setLoading(false);
     }
@@ -181,12 +212,16 @@ export default function ScoresPage() {
   const isParticipant = user?.role === "peserta";
 
   const totalScores = scores.length;
+  const resolvedValues = scores
+    .map((item) => resolveScoreValue(item))
+    .filter((value) => value !== null && value !== undefined);
   const avgScore =
-    totalScores > 0
+    resolvedValues.length > 0
       ? Math.round(
-          (scores.reduce((sum, item) => sum + Number(item.nilai || 0), 0) /
-            totalScores) *
-            10
+          (
+            resolvedValues.reduce((sum, value) => sum + value, 0) /
+            resolvedValues.length
+          ) * 10
         ) / 10
       : 0;
   const distinctJuri = new Set(scores.map((item) => item.juriId)).size;
@@ -246,7 +281,7 @@ export default function ScoresPage() {
 
   if (initializing || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Memeriksa sesi...
       </div>
     );
@@ -258,8 +293,8 @@ export default function ScoresPage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-          <Card className="border border-dashed border-slate-300 bg-slate-50">
-            <CardContent className="py-6 text-sm text-slate-600">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardContent className="py-6 text-sm text-muted-foreground">
               {message}
             </CardContent>
           </Card>
@@ -303,6 +338,7 @@ export default function ScoresPage() {
 
   async function handleSubmitForm(formData) {
     try {
+      let createdScore = null;
       if (editingScore) {
         await put(`/scores/${editingScore.id}`, formData);
         toastSuccess({
@@ -310,13 +346,13 @@ export default function ScoresPage() {
           description: editingScore?.peserta?.namaTim || "Nilai berhasil disimpan",
         });
       } else {
-        await post("/scores", formData);
+        createdScore = await post("/scores", formData);
         toastSuccess({
           title: "Score ditambahkan",
           description: "Penilaian baru berhasil dicatat",
         });
       }
-      await fetchScores();
+      const updatedScores = await fetchScores();
       setDialogOpen(false);
       setEditingScore(null);
     } catch (err) {
@@ -338,14 +374,14 @@ export default function ScoresPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 px-4 py-4 sm:px-6">
+        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
                   Penilaian Juri
                 </CardTitle>
-                <CardDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+                <CardDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {totalScores > 0
                     ? `${totalScores} score tercatat, rata-rata ${avgScore}`
                     : "Belum ada penilaian. Tambahkan score juri pertama."}
@@ -369,16 +405,16 @@ export default function ScoresPage() {
                       placeholder="Cari event, tim, atau juri..."
                       value={filterText}
                       onChange={(e) => setFilterText(e.target.value)}
-                      className="h-9 w-full rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                      className="h-9 w-full rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
                     />
                   </div>
 
                 <div className="flex w-full flex-wrap gap-2">
                   <Select value={eventFilter} onValueChange={setEventFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[180px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua event" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua event</SelectItem>
                       {eventOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -389,10 +425,10 @@ export default function ScoresPage() {
                   </Select>
 
                   <Select value={juriFilter} onValueChange={setJuriFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[160px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[160px] sm:text-sm">
                       <SelectValue placeholder="Semua juri" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua juri</SelectItem>
                       {juriOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -406,10 +442,10 @@ export default function ScoresPage() {
                     value={participantFilter}
                     onValueChange={setParticipantFilter}
                   >
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[180px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua peserta" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua peserta</SelectItem>
                       {pesertaOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -458,7 +494,7 @@ export default function ScoresPage() {
             )}
 
             {!isParticipant && filtered.length !== totalScores && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Menampilkan {filtered.length} dari {totalScores} score.
               </p>
             )}
@@ -512,7 +548,7 @@ export default function ScoresPage() {
 
 function StatPill({ label, value, color = "slate" }) {
   const colorMap = {
-    slate: "bg-slate-100 text-slate-700 border-slate-200",
+    slate: "bg-muted text-foreground border-border",
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
   };
@@ -522,7 +558,7 @@ function StatPill({ label, value, color = "slate" }) {
     <span
       className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${classes}`}
     >
-      <span className="text-[10px] font-normal text-slate-500">{label}</span>
+      <span className="text-[10px] font-normal text-muted-foreground">{label}</span>
       <span className="ml-2 text-sm">{value}</span>
     </span>
   );
@@ -531,7 +567,7 @@ function StatPill({ label, value, color = "slate" }) {
 function ParticipantScoreList({ items, loading, onViewDetails }) {
   if (loading) {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted-foreground">
         Memuat penilaian tim Anda...
       </p>
     );
@@ -539,7 +575,7 @@ function ParticipantScoreList({ items, loading, onViewDetails }) {
 
   if (!items.length) {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted-foreground">
         Belum ada penilaian untuk tim Anda.
       </p>
     );
@@ -547,44 +583,60 @@ function ParticipantScoreList({ items, loading, onViewDetails }) {
 
   return (
     <div className="space-y-4">
-      {items.map((score) => (
-        <div
-          key={score.id}
-          className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-        >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <p className="text-base font-semibold text-slate-900">
-                {score.event?.namaEvent || "Event tidak diketahui"}
-              </p>
-              <p className="text-xs text-slate-500">
-                Juri:{" "}
-                {score.juri?.username ||
-                  score.juri?.email ||
-                  "Tidak diketahui"}
-              </p>
+      {items.map((score) => {
+        const resolvedValue = resolveScoreValue(score);
+        const displayValue =
+          resolvedValue != null
+            ? formatScoreDisplay(resolvedValue)
+            : score.nilai ?? "-";
+        const manualUsed = Boolean(
+          score.useManualNilai && resolvedValue != null
+        );
+        const detailScore = manualUsed
+          ? null
+          : calculateDetailScore(score.details);
+        const detailUsed = !manualUsed && detailScore != null;
+
+        return (
+          <div
+            key={score.id}
+            className="rounded-xl border border-border bg-card p-4 shadow-sm"
+          >
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-base font-semibold text-foreground">
+                  {score.event?.namaEvent || "Event tidak diketahui"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Juri:{" "}
+                  {score.juri?.username ||
+                    score.juri?.email ||
+                    "Tidak diketahui"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase text-muted-foreground">
+                  Nilai akhir
+                </span>
+                <span className="rounded-full border border-border bg-muted px-3 py-1 text-sm font-semibold">
+                  {displayValue}
+                  {detailUsed && " (auto)"}
+                  {manualUsed && " (manual)"}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs uppercase text-slate-400">
-                Nilai akhir
-              </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-sm font-semibold">
-                {score.nilai}
-              </span>
-            </div>
-          </div>
           {score.catatan && (
-            <p className="mt-3 text-xs text-slate-500">
+            <p className="mt-3 text-xs text-muted-foreground">
               Catatan juri: {score.catatan}
             </p>
           )}
 
           {score.details?.length ? (
             <div className="mt-4 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 Detail Penilaian
               </p>
-              <div className="divide-y divide-slate-100 rounded-lg border border-slate-100 bg-slate-50">
+              <div className="divide-y divide-border rounded-lg border border-border bg-muted">
                 {score.details.map((detail) => {
                   const weighted =
                     detail.bobot != null
@@ -596,9 +648,9 @@ function ParticipantScoreList({ items, loading, onViewDetails }) {
                   return (
                     <div
                       key={detail.id}
-                      className="grid grid-cols-2 gap-2 px-3 py-2 text-xs text-slate-600 sm:grid-cols-4"
+                      className="grid grid-cols-2 gap-2 px-3 py-2 text-xs text-muted-foreground sm:grid-cols-4"
                     >
-                      <span className="font-semibold text-slate-800">
+                      <span className="font-semibold text-foreground">
                         {detail.kriteria}
                       </span>
                       <span>Nilai: {detail.nilai}</span>
@@ -618,7 +670,7 @@ function ParticipantScoreList({ items, loading, onViewDetails }) {
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="px-0 text-xs font-semibold text-slate-600 hover:text-slate-900"
+                    className="px-0 text-xs font-semibold text-muted-foreground hover:text-foreground"
                     onClick={() => onViewDetails(score)}
                   >
                     Lihat catatan lengkap
@@ -628,12 +680,13 @@ function ParticipantScoreList({ items, loading, onViewDetails }) {
               )}
             </div>
           ) : (
-            <p className="mt-3 text-xs text-slate-400">
+            <p className="mt-3 text-xs text-muted-foreground">
               Tidak ada detail kriteria untuk penilaian ini.
             </p>
           )}
-        </div>
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -647,16 +700,16 @@ function ScoreDetailViewerDialog({ score, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-2xl rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
-        <DialogHeader className="border-b border-slate-100 px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+      <DialogContent className="w-[95vw] max-w-2xl rounded-xl border border-border bg-card p-0 shadow-lg">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-3">
+          <DialogTitle className="text-base font-semibold text-foreground sm:text-lg">
             Detail Penilaian
           </DialogTitle>
-          <DialogDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <DialogDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {teamName} • {eventName}
           </DialogDescription>
-          <p className="text-[11px] text-slate-400">
-            Juri: <span className="font-medium text-slate-700">{juriName}</span>
+          <p className="text-[11px] text-muted-foreground">
+            Juri: <span className="font-medium text-foreground">{juriName}</span>
           </p>
         </DialogHeader>
 
@@ -665,31 +718,31 @@ function ScoreDetailViewerDialog({ score, open, onOpenChange }) {
             details.map((detail) => (
               <div
                 key={detail.id}
-                className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm"
+                className="rounded-lg border border-border bg-muted p-3 text-sm"
               >
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="font-semibold text-slate-900">
+                  <p className="font-semibold text-foreground">
                     {detail.kriteria}
                   </p>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-0.5 text-xs font-semibold text-slate-800">
+                  <span className="rounded-full border border-border bg-card px-3 py-0.5 text-xs font-semibold text-foreground">
                     {detail.nilai}
                   </span>
                 </div>
-                <div className="mt-1 text-[11px] text-slate-500">
+                <div className="mt-1 text-[11px] text-muted-foreground">
                   Bobot:{" "}
                   <span className="font-medium">
                     {detail.bobot != null ? detail.bobot : "-"}
                   </span>
                 </div>
                 {detail.catatan && (
-                  <p className="mt-2 rounded-md border border-amber-100 bg-white px-3 py-2 text-xs text-slate-600">
+                  <p className="mt-2 rounded-md border border-amber-100 bg-card px-3 py-2 text-xs text-muted-foreground">
                     {detail.catatan}
                   </p>
                 )}
               </div>
             ))
           ) : (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-muted-foreground">
               Belum ada detail untuk score ini.
             </p>
           )}

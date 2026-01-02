@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { UserCircle2, ShieldCheck, Mail } from "lucide-react";
+import { UserCircle2, ShieldCheck, Mail, Camera, Loader2 } from "lucide-react";
 
 import PageContainer from "@/components/layout/page-container";
 import PageHeader from "@/components/layout/page-header";
@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/select";
 import { useAuth } from "@/components/auth/auth-provider";
 import { get, put } from "@/lib/api";
-import { cn } from "@/lib/utils";
+import { cn, resolveMediaUrl } from "@/lib/utils";
+import { uploadProfilePhoto } from "@/lib/upload";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -41,6 +42,9 @@ export default function ProfilePage() {
   });
   const [passwordSaving, setPasswordSaving] = useState(false);
   const [passwordFeedback, setPasswordFeedback] = useState(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoFeedback, setPhotoFeedback] = useState(null);
+  const fileInputRef = useRef(null);
   const isOperator = user?.role === "operator";
   const focusEventOptions = useMemo(() => {
     if (!Array.isArray(events)) return [];
@@ -91,7 +95,7 @@ export default function ProfilePage() {
 
   if (initializing || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Memeriksa sesi...
       </div>
     );
@@ -155,6 +159,33 @@ export default function ProfilePage() {
       setSaving(false);
     }
   }
+
+  async function handleProfilePhotoChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setPhotoFeedback(null);
+    try {
+      setPhotoUploading(true);
+      await uploadProfilePhoto(file);
+      await refreshUser();
+      setPhotoFeedback({ type: "success", message: "Foto profil berhasil diperbarui." });
+    } catch (err) {
+      setPhotoFeedback({
+        type: "error",
+        message: err.message || "Gagal mengunggah foto profil.",
+      });
+    } finally {
+      setPhotoUploading(false);
+      if (event.target) {
+        event.target.value = ""; // reset agar file yang sama bisa dipilih ulang
+      }
+    }
+  }
+
+  const profilePhotoUrl = useMemo(
+    () => resolveMediaUrl(user?.profilePhotoPath),
+    [user?.profilePhotoPath]
+  );
 
   function handlePasswordChange(field, value) {
     setPasswordForm((prev) => ({ ...prev, [field]: value }));
@@ -227,29 +258,71 @@ export default function ProfilePage() {
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border border-slate-200 shadow-sm">
+        <Card className="lg:col-span-2 border border-border shadow-sm">
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center rounded-full bg-slate-100 p-2">
-                <UserCircle2 className="h-7 w-7 text-slate-600" />
+              <div className="relative h-16 w-16">
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-border bg-muted">
+                  {profilePhotoUrl ? (
+                    <img
+                      src={profilePhotoUrl}
+                      alt="Foto profil"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <UserCircle2 className="h-10 w-10 text-muted-foreground" />
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="absolute bottom-0 right-0 inline-flex h-7 w-7 items-center justify-center rounded-full border border-white bg-card text-muted-foreground shadow-sm transition-colors hover:bg-muted"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={photoUploading}
+                  aria-label="Unggah foto profil"
+                >
+                  {photoUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleProfilePhotoChange}
+                />
               </div>
               <div>
                 <CardTitle className="text-base sm:text-lg">
                   {user.username || "Pengguna"}
                 </CardTitle>
-                <p className="text-xs text-slate-500 flex items-center gap-1">
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Mail className="h-3.5 w-3.5" />
                   {user.email}
                 </p>
               </div>
             </div>
             <span
-              className="rounded-full border border-slate-200 px-3 py-1 text-xs font-medium uppercase tracking-wide text-slate-500"
+              className="rounded-full border border-border px-3 py-1 text-xs font-medium uppercase tracking-wide text-muted-foreground"
             >
               {user.role}
             </span>
           </CardHeader>
           <CardContent className="space-y-6 text-sm">
+            {photoFeedback && (
+              <div
+                className={cn(
+                  "rounded-md border px-3 py-2 text-sm",
+                  photoFeedback.type === "success"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-red-200 bg-red-50 text-red-700"
+                )}
+              >
+                {photoFeedback.message}
+              </div>
+            )}
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2">
@@ -273,7 +346,7 @@ export default function ProfilePage() {
                     placeholder="Masukkan nama pengguna baru"
                     disabled={!editing || saving}
                   />
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     Nama pengguna minimal 3 karakter.
                   </p>
                 </div>
@@ -307,7 +380,7 @@ export default function ProfilePage() {
                       }
                       disabled={!editing || saving || eventsLoading}
                     >
-                      <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:text-sm">
+                      <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:text-sm">
                         <SelectValue
                           placeholder={
                             eventsLoading
@@ -316,7 +389,7 @@ export default function ProfilePage() {
                           }
                         />
                       </SelectTrigger>
-                      <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                      <SelectContent className="rounded-md border border-border bg-card shadow-md">
                         <SelectItem value="none">Belum dipilih</SelectItem>
                         {focusEventOptions.map((option) => (
                           <SelectItem key={option.value} value={option.value}>
@@ -372,19 +445,19 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card className="border border-slate-200 shadow-sm">
+        <Card className="border border-border shadow-sm">
           <CardHeader className="space-y-1.5">
             <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
               <ShieldCheck className="h-5 w-5 text-emerald-500" />
               Status & Keamanan
             </CardTitle>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Pantau status akun dan lakukan logout aman.
             </p>
           </CardHeader>
           <CardContent className="space-y-4 text-sm">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-wide text-slate-500">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Status Akun
               </p>
               <span
@@ -392,12 +465,12 @@ export default function ProfilePage() {
               >
                 {user.isActive ? "Aktif" : "Menunggu Konfirmasi"}
               </span>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Pastikan data akun selalu terbaru agar mudah diverifikasi.
               </p>
             </div>
 
-            <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-xs text-slate-600">
+            <div className="rounded-md border border-border bg-muted p-3 text-xs text-muted-foreground">
               Login terakhir tercatat di sistem. Hubungi admin bila ada aktivitas
               mencurigakan atau lupa logout dari perangkat lain.
             </div>
@@ -410,8 +483,8 @@ export default function ProfilePage() {
               Logout dari semua sesi
             </Button>
 
-            <div className="border-t border-slate-100 pt-4">
-              <p className="text-sm font-semibold text-slate-900">
+            <div className="border-t border-border pt-4">
+              <p className="text-sm font-semibold text-foreground">
                 Ubah Password
               </p>
               <form onSubmit={handleChangePassword} className="mt-3 space-y-4">

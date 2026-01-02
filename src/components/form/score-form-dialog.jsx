@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { calculateDetailScore, clampScoreValue } from "@/lib/utils";
 
 export default function ScoreFormDialog({
   open,
@@ -35,7 +36,7 @@ export default function ScoreFormDialog({
     () => calculateDetailScore(initialData?.details),
     [initialData]
   );
-  const hasDetailScore = Boolean(isEdit && detailScoreValue != null);
+  const hasDetailScore = detailScoreValue != null;
 
   const isAdmin = currentUser?.role === "admin";
   const isOperator = currentUser?.role === "operator";
@@ -56,7 +57,8 @@ export default function ScoreFormDialog({
         ? String(initialData.nilai)
         : "",
     juriId: initialJuriId,
-    catatan: initialData?.catatan ?? "",
+    catatan: initialData?.useManualNilai ? initialData?.catatan ?? "" : "",
+    useManualNilai: Boolean(initialData?.useManualNilai),
   }));
   const [submitting, setSubmitting] = useState(false);
   useEffect(() => {
@@ -73,7 +75,8 @@ export default function ScoreFormDialog({
           ? String(initialData.nilai)
           : "",
       juriId: nextJuriId,
-      catatan: initialData?.catatan ?? "",
+      catatan: initialData?.useManualNilai ? initialData?.catatan ?? "" : "",
+      useManualNilai: Boolean(initialData?.useManualNilai),
     });
     setSubmitting(false);
     setFormError("");
@@ -100,6 +103,13 @@ export default function ScoreFormDialog({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function handleToggleManual(checked) {
+    setForm((prev) => ({ ...prev, useManualNilai: checked }));
+    if (!checked) {
+      setFormError("");
+    }
+  }
+
   const juriSelectOptions = useMemo(() => juriOptions ?? [], [juriOptions]);
 
   const selectedJuriOption = useMemo(() => {
@@ -122,32 +132,43 @@ export default function ScoreFormDialog({
     return "";
   })();
 
+  const manualEnabled = Boolean(form.useManualNilai);
+  const detailCount = Array.isArray(initialData?.details)
+    ? initialData.details.length
+    : 0;
+  const automaticDisplay =
+    !manualEnabled && hasDetailScore
+      ? Number(detailScoreValue).toFixed(1)
+      : "";
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!onSubmit) return;
 
-    let nilaiNumber =
-      form.nilai === "" || form.nilai == null ? null : Number(form.nilai);
+    setFormError("");
 
-    if (
-      !hasDetailScore &&
-      nilaiNumber != null &&
-      (Number.isNaN(nilaiNumber) ||
-        nilaiNumber < 0 ||
-        nilaiNumber > 100)
-    ) {
-      return;
+    const manualEnabled = Boolean(form.useManualNilai);
+    const manualRaw =
+      form.nilai === "" || form.nilai == null
+        ? null
+        : clampScoreValue(form.nilai);
+
+    if (manualEnabled) {
+      if (manualRaw === null) {
+        setFormError("Nilai manual wajib diisi dengan angka 0-100.");
+        return;
+      }
     }
 
     const payload = {
       eventId: Number(form.eventId),
       pesertaId: Number(form.pesertaId),
-      nilai: hasDetailScore
-        ? Number(detailScoreValue)
-        : nilaiNumber != null && !Number.isNaN(nilaiNumber)
-        ? Number(Math.min(Math.max(nilaiNumber, 0), 100))
-        : null,
-      catatan: form.catatan?.trim() || null,
+      nilai: manualEnabled && manualRaw !== null ? Math.round(manualRaw) : null,
+      catatan:
+        manualEnabled && form.catatan?.trim()
+          ? form.catatan.trim()
+          : null,
+      useManualNilai: manualEnabled,
     };
 
     if (!payload.eventId || !payload.pesertaId) {
@@ -178,25 +199,25 @@ export default function ScoreFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-slate-200 bg-white p-0 shadow-lg sm:max-w-xl">
-        <DialogHeader className="border-b border-slate-100 px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+      <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-border bg-card p-0 shadow-lg sm:max-w-xl">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-3">
+          <DialogTitle className="text-base font-semibold text-foreground sm:text-lg">
             {isEdit ? "Edit Score" : "Tambah Score"}
           </DialogTitle>
-          <DialogDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <DialogDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {isEdit
               ? "Perbarui nilai atau catatan juri."
               : "Masukkan penilaian untuk tim pada event tertentu."}
           </DialogDescription>
           {juriDisplay && (
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-[11px] text-muted-foreground">
               Juri:{" "}
-              <span className="font-medium text-slate-900">
+              <span className="font-medium text-foreground">
                 {juriDisplay}
               </span>
             </p>
           )}
-          <p className="mt-1 text-[11px] text-slate-400">
+          <p className="mt-1 text-[11px] text-muted-foreground">
             Kolom bertanda <span className="text-red-500">*</span> wajib diisi.
           </p>
         </DialogHeader>
@@ -205,7 +226,7 @@ export default function ScoreFormDialog({
           {!isEdit && (
             <>
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+                <Label className="text-xs font-medium text-foreground sm:text-sm">
                   Event <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -215,10 +236,10 @@ export default function ScoreFormDialog({
                     handleChange("pesertaId", "");
                   }}
                 >
-                  <SelectTrigger className="h-9 rounded-md border-slate-200 text-xs sm:text-sm">
+                  <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
                     <SelectValue placeholder="Pilih event" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                  <SelectContent className="rounded-md border border-border bg-card shadow-md">
                     {eventOptions.map((event) => (
                       <SelectItem key={event.id} value={String(event.id)}>
                         {event.namaEvent}
@@ -234,7 +255,7 @@ export default function ScoreFormDialog({
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+                <Label className="text-xs font-medium text-foreground sm:text-sm">
                   Tim / Peserta <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -242,14 +263,14 @@ export default function ScoreFormDialog({
                   onValueChange={(value) => handleChange("pesertaId", value)}
                   disabled={!form.eventId}
                 >
-                  <SelectTrigger className="h-9 rounded-md border-slate-200 text-xs sm:text-sm">
+                  <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
                     <SelectValue
                       placeholder={
                         form.eventId ? "Pilih tim" : "Pilih event terlebih dahulu"
                       }
                     />
                   </SelectTrigger>
-                  <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                  <SelectContent className="rounded-md border border-border bg-card shadow-md">
                     {pesertaOptions.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
@@ -268,17 +289,17 @@ export default function ScoreFormDialog({
 
           {canChooseJuri && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+              <Label className="text-xs font-medium text-foreground sm:text-sm">
                 Pilih Juri <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={form.juriId}
                 onValueChange={(value) => handleChange("juriId", value)}
               >
-                <SelectTrigger className="h-9 rounded-md border-slate-200 text-xs sm:text-sm">
+                <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
                   <SelectValue placeholder="Pilih juri penilai" />
                 </SelectTrigger>
-                <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                <SelectContent className="rounded-md border border-border bg-card shadow-md">
                   {juriSelectOptions.map((juri) => (
                     <SelectItem key={juri.id} value={String(juri.id)}>
                       {juri.username || juri.email}
@@ -295,63 +316,85 @@ export default function ScoreFormDialog({
           )}
 
           {isEdit && (
-            <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
+            <div className="rounded-md border border-border bg-muted p-3 text-xs text-muted-foreground">
               Event:{" "}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-foreground">
                 {initialData?.event?.namaEvent || "Event tidak diketahui"}
               </span>
               <br />
               Tim:{" "}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-foreground">
                 {initialData?.peserta?.namaTim || "Tim tidak diketahui"}
               </span>
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-900 sm:text-sm">
-              Nilai{" "}
-              <span className="text-[11px] lowercase text-slate-400">
-                (isi manual atau gunakan detail)
-              </span>
-            </Label>
+          <div className="space-y-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Label
+                htmlFor="score-nilai"
+                className="text-xs font-medium text-foreground sm:text-sm"
+              >
+                Nilai akhir
+              </Label>
+              <label
+                htmlFor="score-use-manual"
+                className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground"
+              >
+                <input
+                  id="score-use-manual"
+                  type="checkbox"
+                  checked={manualEnabled}
+                  onChange={(e) => handleToggleManual(e.target.checked)}
+                  className="h-4 w-4 rounded border-border text-foreground focus:ring-slate-500"
+                />
+                Gunakan nilai manual
+              </label>
+            </div>
             <Input
+              id="score-nilai"
               type="number"
               step="1"
               min="0"
               max="100"
-              value={
-                hasDetailScore
-                  ? detailScoreValue?.toFixed(1) ?? ""
-                  : form.nilai
-              }
+              value={manualEnabled ? form.nilai : automaticDisplay}
               onChange={(e) => handleChange("nilai", e.target.value)}
-              placeholder="Masukkan nilai akhir"
+              placeholder={
+                manualEnabled
+                  ? "Masukkan nilai manual"
+                  : "Nilai otomatis dari detail"
+              }
               required={false}
-              disabled={hasDetailScore}
-              className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+              disabled={!manualEnabled}
+              className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
+              autoComplete="off"
             />
-            {hasDetailScore && (
-              <p className="text-[11px] text-slate-500">
-                Nilai otomatis dari {initialData?.details?.length || 0} detail:{" "}
-                <span className="font-semibold">
-                  {Number(detailScoreValue).toFixed(1)}
-                </span>
-              </p>
-            )}
+            <p className="text-[11px] text-muted-foreground">
+              {manualEnabled
+                ? "Masukkan angka 0-100. Sistem akan membulatkan ke bilangan bulat terdekat."
+                : hasDetailScore
+                ? `Nilai otomatis dari ${detailCount} detail akan digunakan untuk perhitungan juara.`
+                : "Nilai akhir akan dihitung otomatis setelah detail score terisi."}
+            </p>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+            <Label className="text-xs font-medium text-foreground sm:text-sm">
               Catatan
             </Label>
-            <Textarea
-              rows={4}
-              value={form.catatan}
-              onChange={(e) => handleChange("catatan", e.target.value)}
-              placeholder="Masukkan catatan juri (opsional)"
-              className="rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
-            />
+            {manualEnabled ? (
+              <Textarea
+                rows={4}
+                value={form.catatan}
+                onChange={(e) => handleChange("catatan", e.target.value)}
+                placeholder="Masukkan catatan juri (opsional)"
+                className="rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
+              />
+            ) : (
+              <div className="rounded-md border border-dashed border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                Catatan akhir akan diambil dari detail score per kriteria.
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2 pt-2">
@@ -370,7 +413,8 @@ export default function ScoreFormDialog({
               disabled={
                 submitting ||
                 (!isEdit && (!form.eventId || !form.pesertaId)) ||
-                (canChooseJuri && !isEdit && !form.juriId)
+                (canChooseJuri && !isEdit && !form.juriId) ||
+                (manualEnabled && (form.nilai === "" || form.nilai == null))
               }
               className="rounded-md text-xs sm:text-sm"
             >
@@ -382,37 +426,4 @@ export default function ScoreFormDialog({
       </DialogContent>
     </Dialog>
   );
-}
-function calculateDetailScore(details) {
-  if (!details || details.length === 0) return null;
-  const valid = details.filter(
-    (item) => item && !Number.isNaN(Number(item.nilai))
-  );
-  if (!valid.length) return null;
-
-  const hasWeight = valid.some(
-    (item) => item.bobot !== undefined && item.bobot !== null
-  );
-  if (hasWeight) {
-    let weightedSum = 0;
-    valid.forEach((item) => {
-      const nilai = clamp(Number(item.nilai) || 0, 0, 100);
-      const weightRaw = Number(item.bobot);
-      if (!Number.isNaN(weightRaw)) {
-        const weight = clamp(weightRaw, 0, 1);
-        weightedSum += nilai * weight;
-      }
-    });
-    return clamp(weightedSum, 0, 100);
-  }
-
-  const total = valid.reduce(
-    (sum, item) => sum + clamp(Number(item.nilai) || 0, 0, 100),
-    0
-  );
-  return clamp(total / valid.length, 0, 100);
-}
-
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
 }

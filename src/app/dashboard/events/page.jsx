@@ -1,125 +1,338 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarPlus } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { CalendarPlus, PlusCircle } from "lucide-react";
 
 import { useAuth } from "@/components/auth/auth-provider";
-import { get, post, put, del } from "@/lib/api";
 import { useToast } from "@/components/ui/toast-provider";
-import { formatDate, formatCurrency } from "@/lib/formatters";
+import { del, get, post, put } from "@/lib/api";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
-  SelectTrigger,
   SelectContent,
   SelectItem,
+  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 
 import { EventsTable } from "@/components/tables/event-table";
+import { SubEventsTable } from "@/components/tables/sub-event-table";
 import EventFormDialog from "@/components/form/event-form-dialog";
+import EventCategoryFormDialog from "@/components/form/event-category-form-dialog";
 import EventRegistrationDialog from "@/components/form/event-registration-dialog";
 import DetailPesertaFormDialog from "@/components/form/detail-peserta-form-dialog";
+import { ParticipantEventList } from "@/components/peserta/participant-event-list";
+
+// Normalize category data with consistent structure
+function normalizeCategory(category) {
+  if (!category) {
+    return {
+      id: null,
+      name: "",
+      description: "",
+      quota: null,
+      _count: { peserta: 0 },
+    };
+  }
+
+  const pesertaCount =
+    category._count?.peserta ?? category.pesertaCount ?? 0;
+
+  return {
+    ...category,
+    _count: { peserta: pesertaCount },
+  };
+}
+
+// Normalize event data with sorted categories and boolean flags
+function normalizeEventData(event) {
+  if (!event) return event;
+
+  const categories = Array.isArray(event.categories)
+    ? event.categories.map(normalizeCategory)
+    : [];
+
+  categories.sort((a, b) => {
+    const nameA = (a.name || "").toLowerCase();
+    const nameB = (b.name || "").toLowerCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  return {
+    ...event,
+    categories,
+    isFeatured: Boolean(event.isFeatured),
+  };
+}
 
 export default function EventsPage() {
-  const router = useRouter();
   const { user, initializing } = useAuth();
   const { success, error: toastError } = useToast();
-  const isParticipant = user?.role === "peserta";
+
+  const isAdmin = user?.role === "admin";
   const isOperator = user?.role === "operator";
+  const isParticipant = user?.role === "peserta";
   const operatorFocusEventId = isOperator ? user?.focusEventId : null;
   const needsFocusSelection = isOperator && !operatorFocusEventId;
+  const canManageCategories = isAdmin || isOperator;
+  const showCategoryTab = canManageCategories;
 
+  const pathname = usePathname();
   const [events, setEvents] = useState([]);
+  const [registrations, setRegistrations] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [registrations, setRegistrations] = useState([]);
   const [pageError, setPageError] = useState("");
-
   const [filterText, setFilterText] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const isSubEventRoute = pathname?.startsWith("/dashboard/sub-events");
+
+  const [selectedSubEventEventId, setSelectedSubEventEventId] = useState("");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [categoryEditing, setCategoryEditing] = useState(null);
+  const [categoryEventTarget, setCategoryEventTarget] = useState(null);
+  const [categoryError, setCategoryError] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
+
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState(null);
   const [registrationLoading, setRegistrationLoading] = useState(false);
+  const [registrationCategoriesLoading, setRegistrationCategoriesLoading] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
+
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [detailTargetTeam, setDetailTargetTeam] = useState(null);
 
-  useEffect(() => {
-    if (!initializing && !user) {
-      router.push("/auth/login");
-    }
-  }, [initializing, user, router]);
-
   const fetchEvents = useCallback(async () => {
     if (!user || initializing) return;
+    if (isOperator && !operatorFocusEventId) return;
 
     try {
       setLoading(true);
+      setPageError("");
       const data = await get("/events");
-      const scoped = operatorFocusEventId
-        ? data.filter((event) => event.id === operatorFocusEventId)
-        : data;
-      setEvents(scoped);
+      const list = Array.isArray(data)
+        ? data.map((event) => normalizeEventData(event))
+        : [];
+      const scopedList =
+        operatorFocusEventId != null
+          ? list.filter((event) => event.id === operatorFocusEventId)
+          : list;
+      setEvents(scopedList);
+    } catch (err) {
+      console.error(err);
+      const message = err?.message || "Gagal memuat event";
+      setPageError(message);
+      toastError({
+        title: "Gagal memuat event",
+        description: message,
+      });
     } finally {
       setLoading(false);
     }
-  }, [user, initializing, operatorFocusEventId]);
+  }, [user, initializing, isOperator, operatorFocusEventId, toastError]);
 
   const fetchRegistrations = useCallback(async () => {
     if (!user || initializing || !isParticipant) return;
+
     try {
-      const pesertaEndpoint = operatorFocusEventId
-        ? `/peserta?eventId=${operatorFocusEventId}`
-        : "/peserta";
-      const data = await get(pesertaEndpoint);
-      setRegistrations(data);
+      const data = await get("/peserta");
+      setRegistrations(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
+      toastError({
+        title: "Gagal memuat pendaftaran",
+        description:
+          err?.message || "Terjadi kesalahan saat memuat data pendaftaran",
+      });
     }
-  }, [user, initializing, isParticipant, operatorFocusEventId]);
+  }, [user, initializing, isParticipant, toastError]);
 
   useEffect(() => {
+    if (!user || initializing) return;
     fetchEvents();
-  }, [fetchEvents]);
+  }, [user, initializing, fetchEvents]);
 
   useEffect(() => {
-    if (isParticipant) {
-      fetchRegistrations();
+    if (!user || initializing || !isParticipant) return;
+    fetchRegistrations();
+  }, [user, initializing, isParticipant, fetchRegistrations]);
+
+  useEffect(() => {
+    if (!isSubEventRoute) {
+      if (selectedSubEventEventId) {
+        setSelectedSubEventEventId("");
+      }
+      if (categoryError) {
+        setCategoryError("");
+      }
+      return;
     }
-  }, [fetchRegistrations, isParticipant]);
+
+    if (!selectedSubEventEventId) return;
+
+    const exists = events.some(
+      (event) => String(event.id) === String(selectedSubEventEventId)
+    );
+    if (!exists) {
+      setSelectedSubEventEventId("");
+    }
+  }, [events, isSubEventRoute, selectedSubEventEventId, categoryError]);
 
   useEffect(() => {
-    let data = [...events];
-
+    let data = Array.isArray(events) ? [...events] : [];
     if (filterText.trim()) {
       const text = filterText.toLowerCase();
       data = data.filter((ev) =>
         (ev.namaEvent || "").toLowerCase().includes(text)
       );
     }
-
     if (statusFilter !== "all") {
       data = data.filter(
         (ev) => (ev.status || "").toLowerCase() === statusFilter
       );
     }
-
     setFiltered(data);
   }, [events, filterText, statusFilter]);
+
+  const subEvents = useMemo(() => {
+    const list = [];
+
+    events.forEach((event) => {
+      const categories = Array.isArray(event.categories) ? event.categories : [];
+      categories.forEach((category) => {
+        list.push({
+          id: category.id,
+          name: category.name,
+          description: category.description,
+          quota: category.quota,
+          participantCount: category._count?.peserta ?? 0,
+          eventId: event.id,
+          eventName: event.namaEvent,
+          eventStatus: event.status,
+          eventDate: event.tanggalEvent,
+          eventLocation: event.tempatEvent,
+          eventVenue: event.venue,
+          eventRef: event,
+          categoryRef: category,
+        });
+      });
+    });
+
+    return list.sort((a, b) => {
+      const dateA = a.eventDate ? new Date(a.eventDate).getTime() : 0;
+      const dateB = b.eventDate ? new Date(b.eventDate).getTime() : 0;
+      if (dateA !== dateB) {
+        return dateA - dateB;
+      }
+      const eventNameA = (a.eventName || "").toLowerCase();
+      const eventNameB = (b.eventName || "").toLowerCase();
+      if (eventNameA < eventNameB) return -1;
+      if (eventNameA > eventNameB) return 1;
+      const nameA = (a.name || "").toLowerCase();
+      const nameB = (b.name || "").toLowerCase();
+      if (nameA < nameB) return -1;
+      if (nameA > nameB) return 1;
+      return 0;
+    });
+  }, [events]);
+
+  const selectedSubEventEvent = useMemo(() => {
+    if (!selectedSubEventEventId) return null;
+    return (
+      events.find(
+        (event) => String(event.id) === String(selectedSubEventEventId)
+      ) || null
+    );
+  }, [events, selectedSubEventEventId]);
+
+  const filteredSubEvents = useMemo(() => {
+    if (isSubEventRoute) {
+      if (!selectedSubEventEventId) return [];
+
+      let data = subEvents.filter(
+        (item) => String(item.eventId) === String(selectedSubEventEventId)
+      );
+
+      if (categorySearch.trim()) {
+        const text = categorySearch.toLowerCase();
+        data = data.filter((item) =>
+          (item.name || "").toLowerCase().includes(text)
+        );
+      }
+
+      return data;
+    }
+
+    return subEvents;
+  }, [isSubEventRoute, selectedSubEventEventId, subEvents, categorySearch]);
+
+  const baseSubEventList = useMemo(() => {
+    if (!isSubEventRoute || !selectedSubEventEventId) return [];
+    return subEvents.filter(
+      (item) => String(item.eventId) === String(selectedSubEventEventId)
+    );
+  }, [isSubEventRoute, selectedSubEventEventId, subEvents]);
+
+  const totalSubEvents = isSubEventRoute
+    ? baseSubEventList.length
+    : subEvents.length;
+  const totalSubEventQuota = (isSubEventRoute ? baseSubEventList : subEvents).reduce(
+    (sum, item) => sum + (typeof item.quota === "number" ? item.quota : 0),
+    0
+  );
+  const totalSubEventParticipants = (isSubEventRoute ? baseSubEventList : subEvents).reduce(
+    (sum, item) =>
+      sum + (typeof item.participantCount === "number" ? item.participantCount : 0),
+    0
+  );
+  const filteredSubEventCount = filteredSubEvents.length;
+  const noFilteredSubEventResults =
+    isSubEventRoute && Boolean(categorySearch.trim()) && filteredSubEvents.length === 0;
+
+  const eventFilterOptions = useMemo(
+    () =>
+      events.map((event) => ({
+        value: String(event.id),
+        label: event.namaEvent || `Event ${event.id}`,
+      })),
+    [events]
+  );
+
+  function updateEventCategories(eventId, mutator) {
+    setEvents((prev) =>
+      prev.map((event) => {
+        if (event.id !== eventId) return event;
+
+        const currentCategories = Array.isArray(event.categories)
+          ? event.categories.map(normalizeCategory)
+          : [];
+
+        const nextCategories = mutator(currentCategories);
+        return {
+          ...event,
+          categories: Array.isArray(nextCategories)
+            ? nextCategories.map(normalizeCategory)
+            : currentCategories,
+        };
+      })
+    );
+  }
 
   function handleAdd() {
     setEditingEvent(null);
@@ -154,7 +367,14 @@ export default function EventsPage() {
       if (editingEvent) {
         const updated = await put(`/events/${editingEvent.id}`, formData);
         setEvents((prev) =>
-          prev.map((item) => (item.id === updated.id ? updated : item))
+          prev.map((item) => {
+            if (item.id !== updated.id) return item;
+            const normalizedUpdated = normalizeEventData(updated);
+            return {
+              ...normalizedUpdated,
+              categories: item.categories ?? normalizedUpdated.categories,
+            };
+          })
         );
         setPageError("");
         success({
@@ -163,8 +383,9 @@ export default function EventsPage() {
         });
       } else {
         const created = await post("/events", formData);
-        setEvents((prev) => [created, ...prev]);
-         setPageError("");
+        const normalizedCreated = normalizeEventData(created);
+        setEvents((prev) => [normalizedCreated, ...prev]);
+        setPageError("");
         success({
           title: "Event ditambahkan",
           description: created.namaEvent || "Event baru berhasil dibuat",
@@ -181,44 +402,200 @@ export default function EventsPage() {
     }
   }
 
-  async function handleFeature(ev) {
-    if (!ev) return;
+  function openCategoryDialog(eventData, category = null) {
+    if (!eventData) return;
+    setCategoryEventTarget(eventData);
+    setCategoryEditing(category);
+    setCategoryDialogOpen(true);
+    setCategoryError("");
+  }
+
+  async function handleSubmitCategory(formData) {
+    const targetEvent = categoryEventTarget;
+    if (!targetEvent) return;
+
     try {
-      await post(`/events/${ev.id}/feature`);
-      // update local state: unset others, set this one
-      setEvents((prev) => prev.map((item) => ({ ...item, isFeatured: item.id === ev.id })));
-      success({ title: "Event dipilih sebagai unggulan", description: ev.namaEvent });
+      if (categoryEditing) {
+        const updatePayload = { ...formData };
+        delete updatePayload.eventId;
+        const updated = await put(
+          `/event-categories/${categoryEditing.id}`,
+          updatePayload
+        );
+        updateEventCategories(targetEvent.id, (categories) => {
+          const existing = categories.find((cat) => cat.id === updated.id);
+          const count = existing?._count ?? { peserta: 0 };
+          return categories.map((cat) =>
+            cat.id === updated.id
+              ? {
+                  ...existing,
+                  ...updated,
+                  _count: count,
+                }
+              : cat
+          );
+        });
+        success({
+          title: "Kategori diperbarui",
+          description: updated.name,
+        });
+      } else {
+        const created = await post("/event-categories", formData);
+        updateEventCategories(formData.eventId, (categories) => [
+          {
+            ...created,
+            _count: { peserta: 0 },
+          },
+          ...categories,
+        ]);
+        success({
+          title: "Kategori ditambahkan",
+          description: created.name,
+        });
+      }
+
+      setCategoryDialogOpen(false);
+      setCategoryEditing(null);
+      setCategoryEventTarget(null);
+      setCategoryError("");
     } catch (err) {
-      toastError({ title: "Gagal set featured", description: err.message });
+      const message = err.message || "Gagal menyimpan kategori";
+      setCategoryError(message);
+      toastError({
+        title: categoryEditing ? "Gagal menyimpan kategori" : "Gagal menambah kategori",
+        description: err.message,
+      });
     }
   }
 
-  const registrationMap = useMemo(() => {
-    const map = new Map();
-    registrations.forEach((reg) => {
-      map.set(reg.eventId, reg);
-    });
-    return map;
-  }, [registrations]);
+  async function handleDeleteCategory(category, eventData) {
+    if (!category || !eventData) return;
 
-  const openEvents = useMemo(
-    () =>
-      filtered.filter(
-        (event) => (event.status || "").toLowerCase() === "open"
-      ),
-    [filtered]
-  );
-  const closedEvents = useMemo(
-    () =>
-      filtered.filter(
-        (event) => (event.status || "").toLowerCase() === "closed"
-      ),
-    [filtered]
-  );
+    try {
+      await del(`/event-categories/${category.id}`);
+      updateEventCategories(eventData.id, (categories) =>
+        categories.filter((item) => item.id !== category.id)
+      );
+      setCategoryError("");
+      success({
+        title: "Kategori dihapus",
+        description: category.name,
+      });
+    } catch (err) {
+      const message = err.message || "Gagal menghapus kategori";
+      setCategoryError(message);
+      toastError({
+        title: "Gagal menghapus kategori",
+        description: err.message,
+      });
+    }
+  }
 
-  function handleOpenRegistration(eventData) {
-    setSelectedEvent(eventData);
+  function handleAddCategoryFromList() {
+    if (!selectedSubEventEventId) {
+      setCategoryError("Pilih event terlebih dahulu sebelum menambah sub event.");
+      return;
+    }
+
+    const targetEvent = events.find(
+      (event) => String(event.id) === String(selectedSubEventEventId)
+    );
+
+    if (!targetEvent) {
+      setCategoryError("Event induk tidak ditemukan.");
+      return;
+    }
+
+    setCategoryError("");
+    openCategoryDialog(targetEvent);
+  }
+
+  function resolveCategoryContext(subEvent) {
+    if (!subEvent) return { eventData: null, categoryData: null };
+
+    const eventData =
+      events.find((event) => event.id === subEvent.eventId) ||
+      subEvent.eventRef ||
+      null;
+    const categoryData = eventData
+      ? eventData.categories.find((category) => category.id === subEvent.id) ||
+        subEvent.categoryRef ||
+        null
+      : subEvent.categoryRef || null;
+
+    return { eventData, categoryData };
+  }
+
+  function handleEditCategoryFromList(subEvent) {
+    const { eventData, categoryData } = resolveCategoryContext(subEvent);
+    if (!eventData) {
+      setCategoryError("Event induk tidak ditemukan untuk sub event ini.");
+      return;
+    }
+    openCategoryDialog(eventData, categoryData);
+  }
+
+  function handleDeleteCategoryFromList(subEvent) {
+    const { eventData, categoryData } = resolveCategoryContext(subEvent);
+    if (!eventData || !categoryData) {
+      setCategoryError("Event atau sub event tidak ditemukan.");
+      return;
+    }
+    handleDeleteCategory(categoryData, eventData);
+  }
+
+  async function handleFeature(ev) {
+    try {
+      await post(`/events/${ev.id}/feature`);
+      setEvents((prev) =>
+        prev.map((item) => ({ ...item, isFeatured: item.id === ev.id }))
+      );
+      success({
+        title: "Event dipilih sebagai unggulan",
+        description: ev.namaEvent,
+      });
+    } catch (err) {
+      toastError({
+        title: "Gagal set featured",
+        description: err.message,
+      });
+    }
+  }
+
+  async function handleOpenRegistration(eventData) {
+    if (!eventData) return;
+
+    const normalized = normalizeEventData(eventData);
+    setSelectedEvent(normalized);
     setRegisterDialogOpen(true);
+
+    if (normalized.categories?.length) {
+      return;
+    }
+
+    try {
+      setRegistrationCategoriesLoading(true);
+      const detail = await get(`/events/${eventData.id}`);
+      const enriched = normalizeEventData(detail);
+      setSelectedEvent(enriched);
+      setEvents((prev) =>
+        prev.map((item) =>
+          item.id === enriched.id
+            ? {
+                ...item,
+                categories: enriched.categories,
+              }
+            : item
+        )
+      );
+    } catch (err) {
+      toastError({
+        title: "Gagal memuat kategori event",
+        description: err?.message || "Terjadi kesalahan saat memuat data event",
+      });
+    } finally {
+      setRegistrationCategoriesLoading(false);
+    }
   }
 
   async function handleSubmitRegistration(values) {
@@ -230,6 +607,7 @@ export default function EventsPage() {
         eventId: selectedEvent.id,
         namaTim: values.namaTim,
         namaPerwakilan: values.namaPerwakilan,
+        eventCategoryId: values.eventCategoryId,
       });
       setPageError("");
       success({
@@ -276,6 +654,55 @@ export default function EventsPage() {
     }
   }
 
+  async function handleCancelRegistration(registration) {
+    if (!registration) return;
+    
+    const confirmCancel = window.confirm(
+      `Batalkan pendaftaran "${registration.namaTim}"?\n\nSemua data anggota tim akan ikut terhapus.`
+    );
+    
+    if (!confirmCancel) return;
+
+    try {
+      await del(`/peserta/${registration.id}`);
+      setPageError("");
+      success({
+        title: "Pendaftaran dibatalkan",
+        description: `${registration.namaTim} telah dibatalkan`,
+      });
+      await fetchRegistrations();
+    } catch (err) {
+      setPageError(err.message || "Gagal membatalkan pendaftaran");
+      toastError({
+        title: "Gagal membatalkan pendaftaran",
+        description: err.message,
+      });
+    }
+  }
+
+  const registrationMap = useMemo(() => {
+    const map = new Map();
+    registrations.forEach((reg) => {
+      map.set(reg.eventId, reg);
+    });
+    return map;
+  }, [registrations]);
+
+  const openEvents = useMemo(
+    () =>
+      filtered.filter(
+        (event) => (event.status || "").toLowerCase() === "open"
+      ),
+    [filtered]
+  );
+  const closedEvents = useMemo(
+    () =>
+      filtered.filter(
+        (event) => (event.status || "").toLowerCase() === "closed"
+      ),
+    [filtered]
+  );
+
   if (initializing || !user) {
     return (
       <div className="h-screen flex items-center justify-center text-sm text-gray-500">
@@ -289,8 +716,8 @@ export default function EventsPage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-          <Card className="border border-dashed border-slate-300 bg-slate-50">
-            <CardContent className="py-6 text-sm text-slate-600">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardContent className="py-6 text-sm text-muted-foreground">
               Pilih event fokus terlebih dahulu pada tab Profil untuk mengelola event.
             </CardContent>
           </Card>
@@ -310,45 +737,199 @@ export default function EventsPage() {
     (ev) => (ev.status || "").toLowerCase() === "closed"
   ).length;
 
+  const eventHeaderDescription =
+    totalEvents > 0
+      ? `${totalEvents} event terdaftar`
+      : "Belum ada event terdaftar. Tambahkan event untuk mengisi kalender.";
+  const subEventHeaderDescription = totalEvents
+    ? "Kelola sub event untuk setiap event."
+    : "Buat event terlebih dahulu sebelum menambah sub event.";
+  const headerTitle = isSubEventRoute ? "Sub Event" : "Event";
+  const headerDescription = isSubEventRoute
+    ? subEventHeaderDescription
+    : eventHeaderDescription;
+
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 sm:px-4 lg:px-2 py-4 sm:py-2 lg:py-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <CardHeader className="px-4 sm:px-6 py-4 border-b border-slate-100">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="px-4 sm:px-6 py-4 border-b border-border space-y-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <CardTitle className="text-base sm:text-lg font-semibold text-slate-900">
-                  Event
+                <CardTitle className="text-base sm:text-lg font-semibold text-foreground">
+                  {headerTitle}
                 </CardTitle>
-                <CardDescription className="text-xs sm:text-sm text-slate-500 mt-1">
-                  {totalEvents > 0
-                    ? `${totalEvents} event terdaftar`
-                    : "Belum ada event terdaftar. Tambahkan event untuk mengisi kalender."}
+                <CardDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  {headerDescription}
                 </CardDescription>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                <StatPill label="Total" value={totalEvents} />
-                <StatPill label="Open" value={openEventsCount} color="emerald" />
-                <StatPill label="Draft" value={draftEventsCount} color="amber" />
-                <StatPill label="Closed" value={closedEventsCount} color="rose" />
-              </div>
+              {!isSubEventRoute && (
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <StatPill label="Total" value={totalEvents} />
+                  <StatPill label="Open" value={openEventsCount} color="emerald" />
+                  <StatPill label="Draft" value={draftEventsCount} color="amber" />
+                  <StatPill label="Closed" value={closedEventsCount} color="rose" />
+                </div>
+              )}
             </div>
           </CardHeader>
 
           <CardContent className="px-4 sm:px-6 py-4 sm:py-5 space-y-4">
-            {isParticipant ? (
+            {isSubEventRoute && showCategoryTab ? (
+              <>
+                {categoryError && (
+                  <p className="text-[11px] text-red-500">{categoryError}</p>
+                )}
+                {loading ? (
+                  <p className="text-sm text-muted-foreground">
+                    Memuat data sub event...
+                  </p>
+                ) : events.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    Belum ada event untuk dikelola. Tambahkan event terlebih dahulu.
+                  </p>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                      <div className="w-full md:max-w-sm">
+                        <p className="text-xs font-medium text-foreground">
+                          Event Induk <span className="text-red-500">*</span>
+                        </p>
+                        <Select
+                          value={selectedSubEventEventId || undefined}
+                          onValueChange={(value) => {
+                            setSelectedSubEventEventId(value);
+                            setCategorySearch("");
+                            setCategoryError("");
+                          }}
+                        >
+                          <SelectTrigger className="mt-1 h-9 w-full rounded-md border-border bg-card text-xs sm:text-sm">
+                            <SelectValue placeholder="Pilih event terlebih dahulu" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-card border border-border shadow-md rounded-md">
+                            {eventFilterOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {selectedSubEventEventId && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-9 rounded-md text-xs"
+                            onClick={() => {
+                              setSelectedSubEventEventId("");
+                              setCategorySearch("");
+                              setCategoryError("");
+                            }}
+                          >
+                            Reset
+                          </Button>
+                        )}
+                        {canManageCategories && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={handleAddCategoryFromList}
+                            disabled={!selectedSubEventEventId}
+                            className="h-9 flex items-center gap-2 rounded-md text-xs sm:text-sm"
+                          >
+                            <PlusCircle className="h-4 w-4" />
+                            Tambah Sub Event
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedSubEventEvent ? (
+                      <>
+                        <div className="rounded-lg border border-border bg-muted px-4 py-3 space-y-2">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                {selectedSubEventEvent.namaEvent}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {selectedSubEventEvent.tempatEvent || "-"} • {formatDate(selectedSubEventEvent.tanggalEvent)}
+                              </p>
+                            </div>
+                            <span className="inline-flex items-center justify-center rounded-full border border-border px-2 py-0.5 text-[11px] font-semibold capitalize text-muted-foreground">
+                              {selectedSubEventEvent.status || "-"}
+                            </span>
+                          </div>
+                          {selectedSubEventEvent.deskripsiEvent && (
+                            <p className="text-xs text-muted-foreground">
+                              {selectedSubEventEvent.deskripsiEvent}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <Input
+                            placeholder="Cari sub event..."
+                            value={categorySearch}
+                            onChange={(e) => {
+                              setCategorySearch(e.target.value);
+                              setCategoryError("");
+                            }}
+                            className="h-9 w-full sm:w-[240px] rounded-md border-border bg-card text-xs sm:text-sm placeholder:text-muted-foreground"
+                          />
+
+                          <div className="flex flex-wrap items-center gap-2 text-xs">
+                            <StatPill label="Total Sub Event" value={totalSubEvents} />
+                            <StatPill label="Total Kuota" value={totalSubEventQuota} color="amber" />
+                            <StatPill label="Total Peserta" value={totalSubEventParticipants} color="emerald" />
+                          </div>
+                        </div>
+
+                        {noFilteredSubEventResults ? (
+                          <p className="text-xs text-muted-foreground">
+                            Tidak ada sub event yang cocok dengan pencarian.
+                          </p>
+                        ) : (
+                          <>
+                            {filteredSubEventCount !== totalSubEvents && filteredSubEvents.length > 0 && (
+                              <p className="text-[11px] text-muted-foreground">
+                                Menampilkan <span className="font-medium">{filteredSubEventCount}</span> dari{" "}
+                                <span className="font-medium">{totalSubEvents}</span> sub event.
+                              </p>
+                            )}
+
+                            <SubEventsTable
+                              items={filteredSubEvents}
+                              loading={false}
+                              canEdit={canManageCategories}
+                              onEdit={handleEditCategoryFromList}
+                              onDelete={handleDeleteCategoryFromList}
+                            />
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        Pilih event untuk melihat dan mengelola daftar sub event.
+                      </p>
+                    )}
+                  </>
+                )}
+              </>
+            ) : isParticipant ? (
               <>
                 {pageError && (
                   <p className="text-[11px] text-red-500">{pageError}</p>
                 )}
-                <ParticipantEventCards
-                  openEvents={openEvents}
-                  closedEvents={closedEvents}
-                  registrations={registrationMap}
+                <ParticipantEventList
+                  events={events}
+                  registrations={registrations}
                   onRegister={handleOpenRegistration}
-                  onAddDetail={handleOpenDetailDialog}
-                  loading={loading}
+                  onCancel={handleCancelRegistration}
                 />
               </>
             ) : (
@@ -360,7 +941,7 @@ export default function EventsPage() {
                         placeholder="Cari nama event..."
                         value={filterText}
                         onChange={(e) => setFilterText(e.target.value)}
-                        className="h-9 w-full rounded-md border-slate-200 bg-white text-xs sm:text-sm placeholder:text-slate-400"
+                        className="h-9 w-full rounded-md border-border bg-card text-xs sm:text-sm placeholder:text-muted-foreground"
                       />
                     </div>
 
@@ -369,10 +950,10 @@ export default function EventsPage() {
                         value={statusFilter}
                         onValueChange={setStatusFilter}
                       >
-                        <SelectTrigger className="h-9 w-full sm:w-[180px] rounded-md border-slate-200 bg-white text-xs sm:text-sm">
+                        <SelectTrigger className="h-9 w-full sm:w-[180px] rounded-md border-border bg-card text-xs sm:text-sm">
                           <SelectValue placeholder="Semua status" />
                         </SelectTrigger>
-                        <SelectContent className="bg-white border border-slate-200 shadow-md rounded-md">
+                        <SelectContent className="bg-card border border-border shadow-md rounded-md">
                           <SelectItem value="all">Semua status</SelectItem>
                           <SelectItem value="open">Open</SelectItem>
                           <SelectItem value="draft">Draft</SelectItem>
@@ -413,7 +994,7 @@ export default function EventsPage() {
                 )}
 
                 {filtered.length !== totalEvents && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-muted-foreground">
                     Menampilkan{" "}
                     <span className="font-medium">{filtered.length}</span> dari{" "}
                     <span className="font-medium">{totalEvents}</span> event.
@@ -444,6 +1025,23 @@ export default function EventsPage() {
           onSubmit={handleSubmitForm}
         />
       )}
+      {showCategoryTab && (
+        <EventCategoryFormDialog
+          open={categoryDialogOpen}
+          onOpenChange={(val) => {
+            if (!val) {
+              setCategoryDialogOpen(false);
+              setCategoryEditing(null);
+              setCategoryEventTarget(null);
+            } else {
+              setCategoryDialogOpen(true);
+            }
+          }}
+          eventContext={categoryEventTarget}
+          initialData={categoryEditing}
+          onSubmit={handleSubmitCategory}
+        />
+      )}
       {isParticipant && (
         <EventRegistrationDialog
           open={registerDialogOpen}
@@ -454,6 +1052,7 @@ export default function EventsPage() {
             setRegisterDialogOpen(val);
           }}
           eventData={selectedEvent}
+          loadingCategories={registrationCategoriesLoading}
           onSubmit={handleSubmitRegistration}
         />
       )}
@@ -468,17 +1067,7 @@ export default function EventsPage() {
               setDetailDialogOpen(true);
             }
           }}
-          initialData={null}
-          pesertaOptions={[
-            {
-              value: String(detailTargetTeam.id),
-              label: detailTargetTeam.namaTim || detailTargetTeam.event?.namaEvent || "Tim peserta",
-            },
-          ]}
-          presetPesertaId={detailTargetTeam.id}
-          presetPesertaLabel={
-            detailTargetTeam.namaTim || detailTargetTeam.event?.namaEvent
-          }
+          teamData={detailTargetTeam}
           onSubmit={handleSubmitDetail}
         />
       )}
@@ -489,8 +1078,7 @@ export default function EventsPage() {
 function StatPill({ label, value, color }) {
   let base =
     "inline-flex flex-col justify-center rounded-md border px-2.5 py-1 min-w-[60px]";
-  let tone =
-    "bg-slate-50 text-slate-800 border-slate-200";
+  let tone = "bg-muted text-foreground border-border";
 
   if (color === "emerald")
     tone = "bg-emerald-50 text-emerald-800 border-emerald-200";
@@ -519,7 +1107,7 @@ function ParticipantEventCards({
 }) {
   if (loading) {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted-foreground">
         Memuat daftar event untuk peserta...
       </p>
     );
@@ -528,7 +1116,7 @@ function ParticipantEventCards({
   function renderEventList(items, type) {
     if (!items.length) {
       return (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           {type === "open"
             ? "Tidak ada event terbuka saat ini."
             : "Belum ada event yang sudah ditutup."}
@@ -554,14 +1142,14 @@ function ParticipantEventCards({
           return (
             <article
               key={event.id}
-              className="flex h-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+              className="flex h-full flex-col rounded-xl border border-border bg-card shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
             >
-              <div className="flex items-start justify-between gap-2 border-b border-slate-100 px-4 py-3">
+              <div className="flex items-start justify-between gap-2 border-b border-border px-4 py-3">
                 <div>
-                  <p className="text-base font-semibold text-slate-900 line-clamp-1">
+                  <p className="text-base font-semibold text-foreground line-clamp-1">
                     {event.namaEvent}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {event.tempatEvent || "-"} •{" "}
                     {formatDate(event.tanggalEvent, {
                       day: "2-digit",
@@ -580,23 +1168,41 @@ function ParticipantEventCards({
                 )}
               </div>
 
-              <div className="flex flex-1 flex-col justify-between px-4 py-4 text-sm text-slate-600">
+              <div className="flex flex-1 flex-col justify-between px-4 py-4 text-sm text-muted-foreground">
                 <div className="space-y-2">
-                  <p className="text-xs text-slate-500">
+                  {registration?.eventCategory ? (
+                    <p className="text-xs text-muted-foreground">
+                      Kategori terdaftar:{" "}
+                      <span className="font-semibold text-foreground">
+                        {registration.eventCategory.name}
+                      </span>
+                    </p>
+                  ) : event.categories?.length ? (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-semibold text-foreground">
+                        Kategori tersedia:
+                      </span>
+                      <p className="text-[11px] text-muted-foreground">
+                        {event.categories.map((category) => category.name).join(", ")}
+                      </p>
+                    </div>
+                  ) : null}
+
+                  <p className="text-xs text-muted-foreground">
                     Kuota{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-foreground">
                       {event.kuota ?? "-"}
                     </span>{" "}
                     • Biaya{" "}
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-semibold text-foreground">
                       {formatCurrency(event.biaya)}
                     </span>
                   </p>
                   {registration ? (
-                    <div className="space-y-2 text-xs text-slate-500">
+                    <div className="space-y-2 text-xs text-muted-foreground">
                       <div>
                         Detail peserta terisi:{" "}
-                        <span className="font-semibold text-slate-900">
+                        <span className="font-semibold text-foreground">
                           {registration.detailPeserta?.length || 0}
                         </span>
                       </div>
@@ -611,7 +1217,7 @@ function ParticipantEventCards({
                         </Button>
                         <Link
                           href="/dashboard/peserta"
-                          className="inline-flex h-8 items-center rounded-full border border-slate-200 px-3 text-xs font-semibold text-slate-700 hover:bg-white"
+                          className="inline-flex h-8 items-center rounded-full border border-border px-3 text-xs font-semibold text-foreground hover:bg-card"
                         >
                           Lihat semua anggota
                         </Link>
@@ -629,7 +1235,7 @@ function ParticipantEventCards({
                     )
                   )}
                   {type === "closed" && !registration && (
-                    <p className="text-[11px] text-slate-400">
+                    <p className="text-[11px] text-muted-foreground">
                       Pendaftaran event ini sudah ditutup.
                     </p>
                   )}
@@ -645,12 +1251,12 @@ function ParticipantEventCards({
   return (
     <div className="space-y-6">
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items center justify-between">
           <div>
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-foreground">
               Event Terbuka
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Pilih event dan lengkapi data peserta Anda.
             </p>
           </div>
@@ -661,10 +1267,10 @@ function ParticipantEventCards({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-slate-900">
+            <p className="text-sm font-semibold text-foreground">
               Event Selesai
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Arsip event yang sudah berakhir. Draft tidak ditampilkan.
             </p>
           </div>

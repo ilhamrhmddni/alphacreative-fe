@@ -22,34 +22,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Calendar, ClipboardList, Pencil, Trash2 } from "lucide-react";
 import { formatDate } from "@/lib/formatters";
-
-function calculateDetailScore(details) {
-  if (!details || !details.length) return null;
-  const valid = details.filter(
-    (item) => item && !Number.isNaN(Number(item.nilai))
-  );
-  if (!valid.length) return null;
-  const hasWeight = valid.some(
-    (item) => item.bobot !== undefined && item.bobot !== null
-  );
-  if (hasWeight) {
-    let weightedSum = 0;
-    valid.forEach((item) => {
-      const nilai = clamp(Number(item.nilai) || 0, 0, 100);
-      const weightRaw = Number(item.bobot);
-      if (!Number.isNaN(weightRaw)) {
-        const weight = clamp(weightRaw, 0, 1);
-        weightedSum += nilai * weight;
-      }
-    });
-    return clamp(weightedSum, 0, 100);
-  }
-  const total = valid.reduce(
-    (sum, item) => sum + clamp(Number(item.nilai) || 0, 0, 100),
-    0
-  );
-  return clamp(total / valid.length, 0, 100);
-}
+import {
+  calculateDetailScore,
+  formatScoreDisplay,
+  resolveScoreValue,
+  safeDisplayValue,
+} from "@/lib/utils";
 
 export function ScoreTable({
   items,
@@ -72,7 +50,7 @@ export function ScoreTable({
 
   if (!hasData) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-slate-500">
+      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
         Belum ada score. Catat penilaian juri untuk setiap tim.
       </div>
     );
@@ -83,55 +61,70 @@ export function ScoreTable({
       {/* mobile cards */}
       <div className="space-y-3 px-3 py-3 sm:hidden">
         {items.map((score, idx) => {
-          const detailScore = calculateDetailScore(score.details);
+          const resolvedValue = resolveScoreValue(score);
           const displayValue =
-            detailScore != null ? Number(detailScore).toFixed(1) : score.nilai;
+            resolvedValue != null
+              ? formatScoreDisplay(resolvedValue)
+              : safeDisplayValue(score.nilai);
+          const manualUsed = Boolean(
+            score.useManualNilai && score.nilai != null && resolvedValue != null
+          );
+          const detailScore = manualUsed
+            ? null
+            : calculateDetailScore(score.details);
+          const detailUsed = !manualUsed && detailScore != null;
           const criteriaLabel = (score.details || [])
             .map((detail) => detail?.kriteria)
             .filter(Boolean)
             .join(", ");
           const hasDetails = Boolean(score.details?.length);
+          const catatanText =
+            typeof score.catatan === "string" &&
+            score.catatan.trim().toLowerCase() !== "null"
+              ? score.catatan
+              : null;
           return (
             <div
             key={score.id}
-            className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
+            className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-0.5">
-                <p className="text-base font-semibold text-slate-900">
+                <p className="text-base font-semibold text-foreground">
                   {score.peserta?.namaTim || "Tim tidak diketahui"}
                 </p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   {score.event?.namaEvent || "Event tidak diketahui"}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1 text-right">
-                <span className="text-[11px] font-semibold text-slate-400">
+                <span className="text-[11px] font-semibold text-muted-foreground">
                   No. {startIndex + idx}
                 </span>
-                <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
+                <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-semibold text-foreground">
                   {displayValue}
-                  {detailScore != null && " (auto)"}
+                  {detailUsed && " (auto)"}
+                  {manualUsed && " (manual)"}
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-1 text-xs text-slate-500">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Calendar className="h-3.5 w-3.5" />
               <span>{formatDate(score.createdAt)}</span>
             </div>
 
-            <p className="text-xs text-slate-600 line-clamp-3">
-              {score.catatan || "Tidak ada catatan."}
+            <p className="text-xs text-muted-foreground line-clamp-3">
+              {catatanText || "Tidak ada catatan."}
             </p>
 
             {criteriaLabel && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 {criteriaLabel}
               </p>
             )}
 
-            <div className="flex justify-between text-[11px] text-slate-500">
+            <div className="flex justify-between text-[11px] text-muted-foreground">
               <span>Juri: {score.juri?.username || score.juri?.email || "-"}</span>
               <span>
                 Detail:{" "}
@@ -177,10 +170,10 @@ export function ScoreTable({
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+                  <AlertDialogContent className="rounded-xl border border-border bg-card">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Hapus score?</AlertDialogTitle>
-                      <AlertDialogDescription className="text-sm text-slate-600">
+                      <AlertDialogDescription className="text-sm text-muted-foreground">
                         Nilai juri {score.juri?.username || score.juri?.email || "-"} untuk{" "}
                         <b>{score.peserta?.namaTim || "Tim tidak diketahui"}</b> akan
                         dihapus.
@@ -209,7 +202,7 @@ export function ScoreTable({
         <div className="w-full overflow-x-auto py-1">
           <Table className="w-full whitespace-nowrap">
             <TableHeader>
-              <TableRow className="border-b bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <TableRow className="border-b bg-muted text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <TableHead className="w-[5%] px-4 py-3 text-center">No</TableHead>
                 <TableHead className="w-[24%] px-4 py-3">Event</TableHead>
                 <TableHead className="w-[24%] px-4 py-3">Tim</TableHead>
@@ -227,66 +220,85 @@ export function ScoreTable({
                 )}
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 bg-white">
+            <TableBody className="divide-y divide-border">
               {items.map((score, idx) => {
-                const detailScore = calculateDetailScore(score.details);
+                const resolvedValue = resolveScoreValue(score);
+                const manualUsed = Boolean(
+                  score.useManualNilai &&
+                    score.nilai != null &&
+                    resolvedValue != null
+                );
+                const detailScore = manualUsed
+                  ? null
+                  : calculateDetailScore(score.details);
+                const detailUsed = !manualUsed && detailScore != null;
                 const displayValue =
-                  detailScore != null
-                    ? Number(detailScore).toFixed(1)
-                    : score.nilai;
+                  resolvedValue != null
+                    ? formatScoreDisplay(resolvedValue)
+                    : safeDisplayValue(score.nilai);
                 const criteriaLabel = (score.details || [])
                   .map((detail) => detail?.kriteria)
                   .filter(Boolean)
                   .join(", ");
                 const hasDetails = Boolean(score.details?.length);
+                const catatanText =
+                  typeof score.catatan === "string" &&
+                  score.catatan.trim().toLowerCase() !== "null"
+                    ? score.catatan
+                    : null;
                 return (
                   <TableRow
                     key={score.id}
-                    className="text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                    className="text-sm text-foreground transition-colors hover:bg-muted"
                   >
-                  <TableCell className="px-4 py-3 text-center text-xs font-semibold text-slate-500">
+                  <TableCell className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">
                     {startIndex + idx}
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top">
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-semibold text-foreground">
                       {score.event?.namaEvent || "Event tidak diketahui"}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {formatDate(score.createdAt)}
                     </p>
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top">
-                    <p className="font-medium text-slate-900">
+                    <p className="font-medium text-foreground">
                       {score.peserta?.namaTim || "Tim tidak diketahui"}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {score.peserta?.namaPerwakilan || "-"}
                     </p>
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top text-center">
-                    <span className="inline-flex items-center justify-center rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-800">
+                    <span className="inline-flex items-center justify-center rounded-full border border-border bg-muted px-3 py-1 text-xs font-semibold text-foreground">
                       {displayValue}
                     </span>
-                    {detailScore != null && (
+                    {manualUsed && (
+                      <p className="mt-1 text-[11px] text-muted-foreground">
+                        Nilai manual digunakan
+                      </p>
+                    )}
+                    {detailUsed && (
                       <p className="mt-1 text-[11px] text-emerald-600">
                         Nilai otomatis dari detail
                       </p>
                     )}
                     {criteriaLabel && (
-                      <p className="mt-1 text-[11px] text-slate-500 line-clamp-2">
+                      <p className="mt-1 text-[11px] text-muted-foreground line-clamp-2">
                         {criteriaLabel}
                       </p>
                     )}
-                    {score.catatan && (
-                      <p className="mt-2 text-[11px] text-slate-500 line-clamp-2">
-                        {score.catatan}
+                    {catatanText && (
+                      <p className="mt-2 text-[11px] text-muted-foreground line-clamp-2">
+                        {catatanText}
                       </p>
                     )}
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-xs text-slate-600">
+                  <TableCell className="px-4 py-3 align-top text-xs text-muted-foreground">
                     {score.juri?.username || score.juri?.email || "Juri tidak diketahui"}
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-center text-xs text-slate-600">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs text-muted-foreground">
                     <Button
                       type="button"
                       variant="outline"
@@ -295,7 +307,7 @@ export function ScoreTable({
                       className="inline-flex items-center justify-center rounded-full px-3 py-1 text-[11px]"
                       onClick={() => onViewDetails?.(score)}
                     >
-                      <ClipboardList className="mr-1 h-3.5 w-3.5 text-slate-500" />
+                      <ClipboardList className="mr-1 h-3.5 w-3.5 text-muted-foreground" />
                       {`${score.details?.length || 0} kriteria${
                         hasDetails ? " • Detail & catatan" : ""
                       }`}
@@ -324,12 +336,12 @@ export function ScoreTable({
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+                          <AlertDialogContent className="rounded-xl border border-border bg-card">
                             <AlertDialogHeader>
                               <AlertDialogTitle>
                                 Hapus score?
                               </AlertDialogTitle>
-                              <AlertDialogDescription className="text-sm text-slate-600">
+                              <AlertDialogDescription className="text-sm text-muted-foreground">
                                 Tindakan ini akan menghapus nilai dan seluruh detail terkait.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -358,10 +370,6 @@ export function ScoreTable({
   );
 }
 
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
 function TableSkeleton() {
   const rows = Array.from({ length: 4 });
   return (
@@ -370,23 +378,23 @@ function TableSkeleton() {
         {rows.map((_, idx) => (
           <div
             key={`mobile-skeleton-${idx}`}
-            className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2"
+            className="rounded-xl border border-border bg-muted p-3 space-y-2"
           >
-            <div className="h-4 w-2/3 rounded bg-slate-200" />
-            <div className="h-3 w-1/2 rounded bg-slate-200" />
-            <div className="h-3 w-1/3 rounded bg-slate-200" />
+            <div className="h-4 w-2/3 rounded bg-muted" />
+            <div className="h-3 w-1/2 rounded bg-muted" />
+            <div className="h-3 w-1/3 rounded bg-muted" />
           </div>
         ))}
       </div>
 
       <div className="hidden w-full overflow-x-auto sm:block">
         <table className="w-full">
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {rows.map((_, idx) => (
               <tr key={`desktop-skeleton-${idx}`} className="animate-pulse">
                 {Array.from({ length: 6 }).map((__, colIdx) => (
                   <td key={colIdx} className="px-4 py-3">
-                    <div className="h-4 rounded bg-slate-200" />
+                    <div className="h-4 rounded bg-muted" />
                   </td>
                 ))}
               </tr>

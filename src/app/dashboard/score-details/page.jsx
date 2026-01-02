@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
 
 import { useAuth } from "@/components/auth/auth-provider";
 import { del, get, post, put } from "@/lib/api";
@@ -28,7 +27,31 @@ import {
 import { ScoreDetailTable } from "@/components/tables/score-detail-table";
 import ScoreDetailFormDialog from "@/components/form/score-detail-form-dialog";
 
+const SCORE_DETAIL_PAGE_ENABLED = false;
+
 export default function ScoreDetailsPage() {
+  if (!SCORE_DETAIL_PAGE_ENABLED) {
+    return (
+      <div className="min-h-screen">
+        <main className="container mx-auto px-3 py-6 sm:px-4 lg:px-6">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-foreground">
+                Detail score dinonaktifkan sementara
+              </CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Modul detail score tidak tersedia. Silakan hubungi admin untuk mengaktifkannya kembali.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Data sebelumnya tetap aman dalam sistem, namun pengelolaan detail score tidak dapat dilakukan saat ini.
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   const router = useRouter();
   const { user, initializing } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
@@ -37,8 +60,9 @@ export default function ScoreDetailsPage() {
   const needsFocusSelection = isOperator && !operatorFocusEventId;
 
   const [details, setDetails] = useState([]);
-  const [filtered, setFiltered] = useState([]);
+  const [filteredDetails, setFilteredDetails] = useState([]);
   const [scores, setScores] = useState([]);
+  const [visibleScores, setVisibleScores] = useState([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -49,6 +73,7 @@ export default function ScoreDetailsPage() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDetail, setEditingDetail] = useState(null);
+  const [presetScore, setPresetScore] = useState(null);
   const [participantFilter, setParticipantFilter] = useState("all");
 
   useEffect(() => {
@@ -112,42 +137,68 @@ export default function ScoreDetailsPage() {
   }, [operatorFocusEventId, isOperator]);
 
   useEffect(() => {
-    let data = [...details];
+    const text = filterText.trim().toLowerCase();
 
-    if (filterText.trim()) {
-      const text = filterText.toLowerCase();
-      data = data.filter((item) => {
-        return (
-          (item.kriteria || "").toLowerCase().includes(text) ||
-          (item.score?.event?.namaEvent || "").toLowerCase().includes(text) ||
-          (item.score?.peserta?.namaTim || "").toLowerCase().includes(text) ||
-          (item.score?.juri?.username || item.score?.juri?.email || "")
-            .toLowerCase()
-            .includes(text)
-        );
-      });
-    }
+    const matchesBaseFilters = (score) => {
+      if (!score) return false;
+      if (eventFilter !== "all" && String(score.eventId) !== eventFilter) {
+        return false;
+      }
+      if (juriFilter !== "all" && String(score.juriId) !== juriFilter) {
+        return false;
+      }
+      if (
+        participantFilter !== "all" &&
+        String(score.pesertaId) !== participantFilter
+      ) {
+        return false;
+      }
+      return true;
+    };
 
-    if (eventFilter !== "all") {
-      data = data.filter(
-        (item) => String(item.score?.eventId) === eventFilter
+    const matchesScoreText = (score) => {
+      if (!text) return true;
+      const eventName = (score?.event?.namaEvent || "").toLowerCase();
+      const teamName = (score?.peserta?.namaTim || "").toLowerCase();
+      const juriName = (
+        score?.juri?.username || score?.juri?.email || ""
+      ).toLowerCase();
+      const catatan = (score?.catatan || "").toLowerCase();
+      return (
+        eventName.includes(text) ||
+        teamName.includes(text) ||
+        juriName.includes(text) ||
+        catatan.includes(text)
       );
-    }
+    };
 
-    if (juriFilter !== "all") {
-      data = data.filter(
-        (item) => String(item.score?.juriId) === juriFilter
-      );
-    }
+    const matchesDetailText = (detail, score) => {
+      if (!text) return true;
+      const kriteria = (detail?.kriteria || "").toLowerCase();
+      const catatanDetail = (detail?.catatan || "").toLowerCase();
+      if (kriteria.includes(text) || catatanDetail.includes(text)) {
+        return true;
+      }
+      return matchesScoreText(score);
+    };
 
-    if (participantFilter !== "all") {
-      data = data.filter(
-        (item) => String(item.score?.pesertaId) === participantFilter
-      );
-    }
+    const scoresById = new Map(scores.map((score) => [score.id, score]));
 
-    setFiltered(data);
-  }, [details, filterText, eventFilter, juriFilter, participantFilter]);
+    const nextVisibleScores = scores.filter(
+      (score) => matchesBaseFilters(score) && matchesScoreText(score)
+    );
+
+    const nextFilteredDetails = details.filter((detail) => {
+      const scoreRef = detail.score || scoresById.get(detail.scoreId);
+      if (!matchesBaseFilters(scoreRef)) {
+        return false;
+      }
+      return matchesDetailText(detail, scoreRef);
+    });
+
+    setVisibleScores(nextVisibleScores);
+    setFilteredDetails(nextFilteredDetails);
+  }, [details, scores, filterText, eventFilter, juriFilter, participantFilter]);
 
   const canManage =
     user?.role === "admin" || user?.role === "juri" || user?.role === "operator";
@@ -226,7 +277,7 @@ export default function ScoreDetailsPage() {
 
   if (initializing || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Memeriksa sesi...
       </div>
     );
@@ -236,8 +287,8 @@ export default function ScoreDetailsPage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-          <Card className="border border-dashed border-slate-300 bg-slate-50">
-            <CardContent className="py-6 text-sm text-slate-600">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardContent className="py-6 text-sm text-muted-foreground">
               Pilih event fokus di tab Profil untuk mengelola detail score.
             </CardContent>
           </Card>
@@ -246,13 +297,16 @@ export default function ScoreDetailsPage() {
     );
   }
 
-  function handleAdd() {
+  function handleAddForScore(score) {
+    if (!score) return;
     setEditingDetail(null);
+    setPresetScore(score);
     setDialogOpen(true);
   }
 
   function handleEdit(target) {
     setEditingDetail(target);
+    setPresetScore(null);
     setDialogOpen(true);
   }
 
@@ -330,14 +384,14 @@ export default function ScoreDetailsPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 px-4 py-4 sm:px-6">
+        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
                   Detail Penilaian
                 </CardTitle>
-                <CardDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+                <CardDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {totalDetails > 0
                     ? `${totalDetails} kriteria dari ${uniqueScores} score`
                     : "Belum ada detail score. Tambahkan kriteria penilaian."}
@@ -360,16 +414,16 @@ export default function ScoreDetailsPage() {
                     placeholder="Cari kriteria, tim, atau event..."
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
-                    className="h-9 w-full rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                    className="h-9 w-full rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
                   />
                 </div>
 
                 <div className="flex w-full flex-wrap gap-2">
                   <Select value={eventFilter} onValueChange={setEventFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[180px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua event" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua event</SelectItem>
                       {eventOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -380,10 +434,10 @@ export default function ScoreDetailsPage() {
                   </Select>
 
                   <Select value={juriFilter} onValueChange={setJuriFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[160px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[160px] sm:text-sm">
                       <SelectValue placeholder="Semua juri" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua juri</SelectItem>
                       {juriOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -397,10 +451,10 @@ export default function ScoreDetailsPage() {
                     value={participantFilter}
                     onValueChange={setParticipantFilter}
                   >
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[180px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua peserta" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua peserta</SelectItem>
                       {participantOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -428,33 +482,33 @@ export default function ScoreDetailsPage() {
                 </div>
               </div>
 
-              {canManage && (
-                <Button
-                  size="sm"
-                  onClick={handleAdd}
-                  className="h-9 rounded-md"
-                >
-                  <Plus className="mr-2 h-4 w-4" />
-                  Tambah Detail
-                </Button>
-              )}
             </div>
 
             {error && <p className="text-[11px] text-red-500">{error}</p>}
 
-            {filtered.length !== totalDetails && (
-              <p className="text-[11px] text-slate-500">
-                Menampilkan {filtered.length} dari {totalDetails} detail score.
+            {filteredDetails.length !== totalDetails && (
+              <p className="text-[11px] text-muted-foreground">
+                Menampilkan {filteredDetails.length} dari {totalDetails} detail score.
               </p>
             )}
 
+            {filteredDetails.length === 0 && visibleScores.length > 0 && (
+              <div className="rounded-lg border border-dashed border-border bg-muted px-4 py-3 text-xs text-muted-foreground">
+                Belum ada detail penilaian untuk score yang dipilih. Gunakan tombol{" "}
+                <span className="font-semibold">Tambah detail</span>{" "}
+                pada kartu score untuk mulai mengisi kriteria.
+              </div>
+            )}
+
             <ScoreDetailTable
-              items={filtered}
+              items={filteredDetails}
+              scores={visibleScores}
               loading={loading}
               canEdit={canManage}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onDeleteScore={handleDeleteScore}
+              onAddDetail={handleAddForScore}
             />
           </CardContent>
         </Card>
@@ -463,10 +517,17 @@ export default function ScoreDetailsPage() {
       {canManage && (
         <ScoreDetailFormDialog
           open={dialogOpen}
-          onOpenChange={setDialogOpen}
+          onOpenChange={(openState) => {
+            setDialogOpen(openState);
+            if (!openState) {
+              setEditingDetail(null);
+              setPresetScore(null);
+            }
+          }}
           initialData={editingDetail}
           scores={scores}
           juriOptions={formJuriOptions}
+          presetScore={presetScore}
           onSubmit={handleSubmitForm}
         />
       )}
@@ -476,7 +537,7 @@ export default function ScoreDetailsPage() {
 
 function StatPill({ label, value, color = "slate" }) {
   const colorMap = {
-    slate: "bg-slate-100 text-slate-700 border-slate-200",
+    slate: "bg-muted text-foreground border-border",
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
   };
@@ -486,7 +547,7 @@ function StatPill({ label, value, color = "slate" }) {
     <span
       className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${classes}`}
     >
-      <span className="text-[10px] font-normal text-slate-500">{label}</span>
+      <span className="text-[10px] font-normal text-muted-foreground">{label}</span>
       <span className="ml-2 text-sm">{value}</span>
     </span>
   );

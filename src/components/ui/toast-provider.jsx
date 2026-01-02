@@ -12,9 +12,9 @@ const ToastContext = createContext({
 });
 
 const VARIANT_STYLES = {
-  default: "border-slate-200 bg-white text-slate-900",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  error: "border-rose-200 bg-rose-50 text-rose-900",
+  default: "border border-border bg-card text-card-foreground shadow-lg",
+  success: "border border-emerald-200 bg-emerald-50 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-50 dark:border-emerald-800 shadow-lg",
+  error: "border border-rose-200 bg-rose-50 text-rose-900 dark:bg-rose-950 dark:text-rose-50 dark:border-rose-800 shadow-lg",
 };
 
 export function ToastProvider({ children }) {
@@ -61,12 +61,12 @@ export function ToastProvider({ children }) {
   return (
     <ToastContext.Provider value={{ toast, success, error, dismiss }}>
       {children}
-      <div className="fixed top-6 left-1/2 z-50 flex w-full max-w-md -translate-x-1/2 flex-col gap-2">
+      <div className="pointer-events-none fixed left-1/2 top-6 z-[60] flex w-full max-w-md -translate-x-1/2 flex-col gap-2 px-4 sm:px-0">
         {toasts.map((item) => (
           <div
             key={item.id}
             className={cn(
-              "rounded-lg border px-4 py-3 shadow-lg transition",
+              "pointer-events-auto rounded-lg border px-4 py-3 shadow-lg transition",
               VARIANT_STYLES[item.variant] || VARIANT_STYLES.default
             )}
           >
@@ -76,13 +76,13 @@ export function ToastProvider({ children }) {
                   <p className="text-sm font-semibold">{item.title}</p>
                 )}
                 {item.description && (
-                  <p className="text-xs text-slate-600">{item.description}</p>
+                  <p className="text-xs text-muted-foreground">{item.description}</p>
                 )}
               </div>
               <button
                 type="button"
                 onClick={() => dismiss(item.id)}
-                className="rounded-full p-1 text-xs text-slate-500 transition hover:bg-black/5 hover:text-slate-900"
+                className="rounded-full p-1 text-xs text-muted-foreground transition hover:bg-black/5 hover:text-foreground"
                 aria-label="Dismiss toast"
               >
                 <X className="h-3 w-3" />

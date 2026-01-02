@@ -26,34 +26,102 @@ export default function PesertaFormDialog({
   onSubmit,
   events,
   users,
+  defaultEventId,
 }) {
+  const getInitialEventId = () => {
+    if (initialData?.eventId) return String(initialData.eventId);
+    if (defaultEventId) return String(defaultEventId);
+    return "";
+  };
+
+  const getInitialCategoryId = () => {
+    if (initialData?.eventCategoryId) return String(initialData.eventCategoryId);
+    if (initialData?.eventCategory?.id) return String(initialData.eventCategory.id);
+    return "";
+  };
+
   const [form, setForm] = useState(() => ({
-    eventId: initialData?.eventId ? String(initialData.eventId) : "",
+    eventId: getInitialEventId(),
     userId: initialData?.userId ? String(initialData.userId) : "",
     namaTim: initialData?.namaTim ?? "",
     namaPerwakilan: initialData?.namaPerwakilan ?? "",
     linkDrive: initialData?.partisipasi?.linkDrive ?? "",
+    eventCategoryId: getInitialCategoryId(),
   }));
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setForm({
-      eventId: initialData?.eventId ? String(initialData.eventId) : "",
+      eventId: getInitialEventId(),
       userId: initialData?.userId ? String(initialData.userId) : "",
       namaTim: initialData?.namaTim ?? "",
       namaPerwakilan: initialData?.namaPerwakilan ?? "",
       linkDrive: initialData?.partisipasi?.linkDrive ?? "",
+      eventCategoryId: getInitialCategoryId(),
     });
     setSubmitting(false);
-  }, [initialData]);
+  }, [initialData, defaultEventId, open]);
 
   const isEdit = Boolean(initialData);
   const eventOptions = useMemo(() => events ?? [], [events]);
   const userOptions = useMemo(() => users ?? [], [users]);
+  const selectedEvent = useMemo(() => {
+    if (!form.eventId) return null;
+    return eventOptions.find((event) => String(event.id) === form.eventId) ?? null;
+  }, [eventOptions, form.eventId]);
+  const availableCategories = selectedEvent?.categories ?? [];
+  const categoryRequired = availableCategories.length > 0;
 
   function handleChange(field, value) {
+    if (field === "eventId") {
+      setForm((prev) => {
+        const nextEvent = eventOptions.find((event) => String(event.id) === value) ?? null;
+        const categories = nextEvent?.categories ?? [];
+        const nextCategoryId = (() => {
+          if (!categories.length) return "";
+          if (categories.some((cat) => String(cat.id) === prev.eventCategoryId)) {
+            return prev.eventCategoryId;
+          }
+          return !isEdit ? String(categories[0].id) : "";
+        })();
+        return {
+          ...prev,
+          eventId: value,
+          eventCategoryId: nextCategoryId,
+        };
+      });
+      return;
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
   }
+
+  useEffect(() => {
+    if (!open || !form.eventId) return;
+    const nextEvent = eventOptions.find((event) => String(event.id) === form.eventId) ?? null;
+    const categories = nextEvent?.categories ?? [];
+
+    if (!categories.length) {
+      if (form.eventCategoryId) {
+        setForm((prev) => ({ ...prev, eventCategoryId: "" }));
+      }
+      return;
+    }
+
+    const currentValid = categories.some(
+      (cat) => String(cat.id) === form.eventCategoryId
+    );
+
+    if (!currentValid) {
+      if (!isEdit) {
+        setForm((prev) => ({
+          ...prev,
+          eventCategoryId: String(categories[0].id),
+        }));
+      } else if (form.eventCategoryId) {
+        setForm((prev) => ({ ...prev, eventCategoryId: "" }));
+      }
+    }
+  }, [open, form.eventId, form.eventCategoryId, eventOptions, isEdit]);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -62,9 +130,13 @@ export default function PesertaFormDialog({
     const payload = {
       namaTim: form.namaTim?.trim(),
       namaPerwakilan: form.namaPerwakilan?.trim() || null,
+      eventCategoryId: form.eventCategoryId ? Number(form.eventCategoryId) : null,
     };
 
     if (!payload.namaTim) return;
+    if (!isEdit && !form.eventId) return;
+    if (!isEdit && !form.userId) return;
+    if (categoryRequired && !form.eventCategoryId) return;
 
     if (!isEdit) {
       payload.eventId = Number(form.eventId);
@@ -84,20 +156,20 @@ export default function PesertaFormDialog({
 
   const dialogTitle = isEdit ? "Edit Peserta" : "Tambah Peserta";
   const dialogDescription = isEdit
-    ? "Perbarui nama tim atau perwakilan tanpa mengubah event dan user."
+    ? "Perbarui data tim tanpa mengubah event dan user."
     : "Daftarkan user ke sebuah event sebagai peserta/tim baru.";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-slate-200 bg-white p-0 shadow-lg sm:max-w-xl">
-        <DialogHeader className="border-b border-slate-100 px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+      <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-border bg-card p-0 shadow-lg sm:max-w-xl">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-3">
+          <DialogTitle className="text-base font-semibold text-foreground sm:text-lg">
             {dialogTitle}
           </DialogTitle>
-          <DialogDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <DialogDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {dialogDescription}
           </DialogDescription>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             Kolom bertanda <span className="text-red-500">*</span> wajib diisi.
           </p>
         </DialogHeader>
@@ -106,7 +178,7 @@ export default function PesertaFormDialog({
           {!isEdit && (
             <>
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+                <Label className="text-xs font-medium text-foreground sm:text-sm">
                   Pilih Event <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -114,10 +186,10 @@ export default function PesertaFormDialog({
                   onValueChange={(value) => handleChange("eventId", value)}
                   required
                 >
-                  <SelectTrigger className="h-9 rounded-md border-slate-200 text-xs sm:text-sm">
+                  <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
                     <SelectValue placeholder="Pilih event" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                  <SelectContent className="rounded-md border border-border bg-card shadow-md">
                     {eventOptions.map((event) => (
                       <SelectItem key={event.id} value={String(event.id)}>
                         {event.namaEvent}
@@ -132,8 +204,42 @@ export default function PesertaFormDialog({
                 )}
               </div>
 
+              {form.eventId && (
+                <div className="space-y-2">
+                  <Label className="text-xs font-medium text-foreground sm:text-sm">
+                    Pilih Kategori {categoryRequired && <span className="text-red-500">*</span>}
+                  </Label>
+                  <Select
+                    value={form.eventCategoryId}
+                    onValueChange={(value) => handleChange("eventCategoryId", value)}
+                    required={categoryRequired}
+                    disabled={!availableCategories.length}
+                  >
+                    <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
+                      <SelectValue placeholder={
+                        availableCategories.length
+                          ? "Pilih kategori"
+                          : "Event tanpa kategori"
+                      } />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                      {availableCategories.map((category) => (
+                        <SelectItem key={category.id} value={String(category.id)}>
+                          {category.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!availableCategories.length && (
+                    <p className="text-[11px] text-muted-foreground">
+                      Event ini belum memiliki kategori khusus.
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-2">
-                <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+                <Label className="text-xs font-medium text-foreground sm:text-sm">
                   Pilih User <span className="text-red-500">*</span>
                 </Label>
                 <Select
@@ -141,10 +247,10 @@ export default function PesertaFormDialog({
                   onValueChange={(value) => handleChange("userId", value)}
                   required
                 >
-                  <SelectTrigger className="h-9 rounded-md border-slate-200 text-xs sm:text-sm">
+                  <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
                     <SelectValue placeholder="Pilih user peserta" />
                   </SelectTrigger>
-                  <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                  <SelectContent className="rounded-md border border-border bg-card shadow-md">
                     {userOptions.map((user) => (
                       <SelectItem key={user.id} value={String(user.id)}>
                         {user.username || user.email} • {user.email}
@@ -162,21 +268,68 @@ export default function PesertaFormDialog({
           )}
 
           {isEdit && (
-            <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
+            <div className="rounded-md border border-border bg-muted p-3 text-xs text-muted-foreground">
               Event:{" "}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-foreground">
                 {initialData?.event?.namaEvent || "Event tidak diketahui"}
               </span>
               <br />
               User:{" "}
-              <span className="font-semibold text-slate-900">
+              <span className="font-semibold text-foreground">
                 {initialData?.user?.email || "User tidak diketahui"}
               </span>
+              {availableCategories.length > 0 && (
+                <>
+                  <br />
+                  Kategori event:{" "}
+                  <span className="font-semibold text-foreground">
+                    {selectedEvent?.categories?.find(
+                      (category) => String(category.id) === form.eventCategoryId
+                    )?.name || "Belum dipilih"}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+
+          {isEdit && form.eventId && (
+            <div className="space-y-2">
+              <Label className="text-xs font-medium text-foreground sm:text-sm">
+                Pilih Kategori {categoryRequired && <span className="text-red-500">*</span>}
+              </Label>
+              <Select
+                value={form.eventCategoryId}
+                onValueChange={(value) => handleChange("eventCategoryId", value)}
+                required={categoryRequired}
+                disabled={!availableCategories.length}
+              >
+                <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
+                  <SelectValue
+                    placeholder={
+                      availableCategories.length
+                        ? "Pilih kategori"
+                        : "Event tanpa kategori"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                  {availableCategories.map((category) => (
+                    <SelectItem key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!availableCategories.length && (
+                <p className="text-[11px] text-muted-foreground">
+                  Event ini belum memiliki kategori khusus.
+                </p>
+              )}
             </div>
           )}
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+            <Label className="text-xs font-medium text-foreground sm:text-sm">
               Nama Tim <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -184,25 +337,25 @@ export default function PesertaFormDialog({
               value={form.namaTim}
               onChange={(e) => handleChange("namaTim", e.target.value)}
               placeholder="Masukkan nama tim"
-              className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+              className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+            <Label className="text-xs font-medium text-foreground sm:text-sm">
               Nama Perwakilan
             </Label>
             <Input
               value={form.namaPerwakilan}
               onChange={(e) => handleChange("namaPerwakilan", e.target.value)}
               placeholder="Nama penanggung jawab tim"
-              className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+              className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
             />
           </div>
 
           {isEdit && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+              <Label className="text-xs font-medium text-foreground sm:text-sm">
                 Link Drive Foto
               </Label>
               <Input
@@ -210,9 +363,9 @@ export default function PesertaFormDialog({
                 value={form.linkDrive}
                 onChange={(e) => handleChange("linkDrive", e.target.value)}
                 placeholder="https://drive.google.com/..."
-                className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
               />
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Kosongkan untuk menghapus tautan. Peserta juga dapat memperbarui dari dashboard mereka.
               </p>
             </div>
@@ -232,7 +385,8 @@ export default function PesertaFormDialog({
               disabled={
                 submitting ||
                 (!isEdit && (!form.eventId || !form.userId)) ||
-                !form.namaTim
+                !form.namaTim ||
+                (categoryRequired && !form.eventCategoryId)
               }
               className="rounded-md text-xs sm:text-sm"
             >

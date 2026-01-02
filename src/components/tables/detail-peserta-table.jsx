@@ -25,7 +25,7 @@ import { formatDate } from "@/lib/formatters";
 
 function Badge({ children }) {
   return (
-    <span className="inline-flex items-center rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600">
+    <span className="inline-flex items-center rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
       {children}
     </span>
   );
@@ -51,7 +51,7 @@ export function DetailPesertaTable({
 
   if (!hasData) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-slate-500">
+      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
         Belum ada detail peserta. Tambahkan anggota tim agar data profil
         lengkap.
       </div>
@@ -66,29 +66,29 @@ export function DetailPesertaTable({
           return (
             <div
               key={detail.id}
-              className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
+              className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="space-y-0.5">
-                  <p className="text-base font-semibold text-slate-900">
+                  <p className="text-base font-semibold text-foreground">
                     {detail.namaDetail}
                   </p>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {detail.peserta?.namaTim || "Tim tidak diketahui"}
                   </p>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-muted-foreground">
                     {detail.peserta?.event?.namaEvent || "Event tidak tersedia"}
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1 text-right">
-                  <span className="text-[11px] font-semibold text-slate-400">
+                  <span className="text-[11px] font-semibold text-muted-foreground">
                     No. {startIndex + idx}
                   </span>
                   {detail.umur != null && <Badge>{detail.umur} th</Badge>}
                 </div>
               </div>
 
-              <div className="flex items-center gap-1 text-xs text-slate-500">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="h-3.5 w-3.5" />
                 <span>{formatDate(detail.tanggalLahir)}</span>
               </div>
@@ -115,10 +115,10 @@ export function DetailPesertaTable({
                         <Trash2 className="h-3 w-3" />
                       </Button>
                     </AlertDialogTrigger>
-                    <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+                    <AlertDialogContent className="rounded-xl border border-border bg-card">
                       <AlertDialogHeader>
                         <AlertDialogTitle>Hapus anggota?</AlertDialogTitle>
-                        <AlertDialogDescription className="text-sm text-slate-600">
+                        <AlertDialogDescription className="text-sm text-muted-foreground">
                           {detail.namaDetail} akan dihapus dari tim{" "}
                           <b>{detail.peserta?.namaTim || ""}</b>.
                         </AlertDialogDescription>
@@ -146,7 +146,7 @@ export function DetailPesertaTable({
         <div className="w-full overflow-x-auto py-1">
           <Table className="w-full whitespace-nowrap">
             <TableHeader>
-              <TableRow className="border-b bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <TableRow className="border-b bg-muted text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <TableHead className="w-[6%] px-4 py-3 text-center">No</TableHead>
                 <TableHead className="w-[24%] px-4 py-3">Anggota</TableHead>
                 <TableHead className="w-[26%] px-4 py-3">Tim & Event</TableHead>
@@ -164,38 +164,38 @@ export function DetailPesertaTable({
                 )}
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 bg-white">
+            <TableBody className="divide-y divide-border">
               {items.map((detail, idx) => (
                 <TableRow
                   key={detail.id}
-                  className="text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                  className="text-sm text-foreground transition-colors hover:bg-muted"
                 >
-                  <TableCell className="px-4 py-3 align-top text-center text-xs font-semibold text-slate-500">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs font-semibold text-muted-foreground">
                     {startIndex + idx}
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top">
-                    <p className="font-semibold text-slate-900">
+                    <p className="font-semibold text-foreground">
                       {detail.namaDetail}
                     </p>
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-xs text-slate-600">
-                    <p className="font-medium text-sm text-slate-900">
+                  <TableCell className="px-4 py-3 align-top text-xs text-muted-foreground">
+                    <p className="font-medium text-sm text-foreground">
                       {detail.peserta?.namaTim || "Tim tidak diketahui"}
                     </p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-muted-foreground">
                       {detail.peserta?.event?.namaEvent || "Event tidak tersedia"}
                     </p>
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-center text-xs text-slate-600">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs text-muted-foreground">
                     {formatDate(detail.tanggalLahir)}
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-center text-xs text-slate-600">
+                  <TableCell className="px-4 py-3 align-top text-center text-xs text-muted-foreground">
                     {detail.umur != null ? `${detail.umur} th` : "-"}
                   </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-xs text-slate-600">
+                  <TableCell className="px-4 py-3 align-top text-xs text-muted-foreground">
                     {detail.peserta?.namaPerwakilan || "-"}
                     <br />
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-muted-foreground">
                       {detail.peserta?.user?.email || "-"}
                     </span>
                   </TableCell>
@@ -222,10 +222,10 @@ export function DetailPesertaTable({
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>
-                          <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+                          <AlertDialogContent className="rounded-xl border border-border bg-card">
                             <AlertDialogHeader>
                               <AlertDialogTitle>Hapus anggota?</AlertDialogTitle>
-                              <AlertDialogDescription className="text-sm text-slate-600">
+                              <AlertDialogDescription className="text-sm text-muted-foreground">
                                 Data anggota ini akan dihapus permanen.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
@@ -261,23 +261,23 @@ function TableSkeleton() {
         {rows.map((_, idx) => (
           <div
             key={`mobile-skeleton-${idx}`}
-            className="rounded-xl border border-slate-100 bg-slate-50 p-3 space-y-2"
+            className="rounded-xl border border-border bg-muted p-3 space-y-2"
           >
-            <div className="h-4 w-2/3 rounded bg-slate-200" />
-            <div className="h-3 w-1/2 rounded bg-slate-200" />
-            <div className="h-3 w-1/3 rounded bg-slate-200" />
+            <div className="h-4 w-2/3 rounded bg-muted" />
+            <div className="h-3 w-1/2 rounded bg-muted" />
+            <div className="h-3 w-1/3 rounded bg-muted" />
           </div>
         ))}
       </div>
 
       <div className="hidden w-full overflow-x-auto sm:block">
         <table className="w-full">
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {rows.map((_, idx) => (
               <tr key={`desktop-skeleton-${idx}`} className="animate-pulse">
                 {Array.from({ length: 6 }).map((__, colIdx) => (
                   <td key={colIdx} className="px-4 py-3">
-                    <div className="h-4 rounded bg-slate-200" />
+                    <div className="h-4 rounded bg-muted" />
                   </td>
                 ))}
               </tr>

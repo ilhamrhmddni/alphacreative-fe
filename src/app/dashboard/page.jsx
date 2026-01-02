@@ -8,6 +8,11 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 import { get } from "@/lib/api";
 import { formatDate } from "@/lib/formatters";
+import {
+  calculateDetailScore,
+  formatScoreDisplay,
+  resolveScoreValue,
+} from "@/lib/utils";
 
 import {
   Card,
@@ -26,6 +31,8 @@ import {
 import PageContainer from "@/components/layout/page-container";
 import PageHeader from "@/components/layout/page-header";
 
+const SCORE_FEATURE_ENABLED = false;
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, initializing } = useAuth();
@@ -41,12 +48,18 @@ export default function DashboardPage() {
     peserta: 0,
     berita: 0,
     users: 0,
+    merchandise: 0,
+    partnerships: 0,
+    gallery: 0,
   });
   const [eventsData, setEventsData] = useState([]);
   const [pesertaData, setPesertaData] = useState([]);
   const [beritaData, setBeritaData] = useState([]);
   const [scoresData, setScoresData] = useState([]);
   const [juaraData, setJuaraData] = useState([]);
+  const [merchandiseData, setMerchandiseData] = useState([]);
+  const [partnershipsData, setPartnershipsData] = useState([]);
+  const [galleryData, setGalleryData] = useState([]);
   const [scoreDetailsData, setScoreDetailsData] = useState([]);
   const [scoreDetailsLoading, setScoreDetailsLoading] = useState(false);
   const [scoreDetailsError, setScoreDetailsError] = useState("");
@@ -90,14 +103,30 @@ export default function DashboardPage() {
           ? `/juara?eventId=${scopedEventId}`
           : "/juara";
 
-        const [events, peserta, berita, users, scores, juara] =
+        const scoresPromise = SCORE_FEATURE_ENABLED
+          ? get(scoresUrl)
+          : Promise.resolve([]);
+
+        const [events, peserta, berita, users, scores, juara, merchandise, partnerships, gallery] =
           await Promise.all([
             get("/events"),
             pesertaPromise,
             get("/berita"),
             userPromise,
-            get(scoresUrl),
+            scoresPromise,
             get(juaraUrl),
+            get("/merchandise").catch((err) => {
+              console.error('Failed to fetch merchandise:', err);
+              return [];
+            }),
+            get("/partnerships").catch((err) => {
+              console.error('Failed to fetch partnerships:', err);
+              return [];
+            }),
+            get("/gallery").catch((err) => {
+              console.error('Failed to fetch gallery:', err);
+              return [];
+            }),
           ]);
 
         const scopedEvents = scopedEventId
@@ -112,8 +141,22 @@ export default function DashboardPage() {
 
         const pesertaList = Array.isArray(peserta) ? peserta : [];
         const usersList = Array.isArray(users) ? users : [];
-        const scoresList = Array.isArray(scores) ? scores : [];
+        const scoresList = SCORE_FEATURE_ENABLED && Array.isArray(scores) ? scores : [];
         const juaraList = Array.isArray(juara) ? juara : [];
+        // Handle merchandise with pagination structure
+        const merchandiseList = Array.isArray(merchandise) 
+          ? merchandise 
+          : Array.isArray(merchandise?.data)
+          ? merchandise.data
+          : [];
+        const partnershipsList = Array.isArray(partnerships) ? partnerships : [];
+        const galleryList = Array.isArray(gallery) ? gallery : [];
+
+        console.log('Dashboard data:', {
+          merchandise: merchandiseList.length,
+          partnerships: partnershipsList.length,
+          gallery: galleryList.length
+        });
 
         setStats({
           events: scopedEvents.length ?? 0,
@@ -122,12 +165,18 @@ export default function DashboardPage() {
             ? berita.length
             : berita?.meta?.total ?? beritaList.length,
           users: usersList.length,
+          merchandise: merchandiseList.length,
+          partnerships: partnershipsList.length,
+          gallery: galleryList.length,
         });
         setEventsData(scopedEvents || []);
         setPesertaData(pesertaList);
         setBeritaData(beritaList);
         setScoresData(scoresList);
         setJuaraData(juaraList);
+        setMerchandiseData(merchandiseList);
+        setPartnershipsData(partnershipsList);
+        setGalleryData(galleryList);
       } catch (err) {
         console.error(err);
         setError(err.message || "Gagal memuat data dashboard");
@@ -140,6 +189,13 @@ export default function DashboardPage() {
   }, [initializing, user, router, operatorFocusEventId]);
 
   useEffect(() => {
+    if (!SCORE_FEATURE_ENABLED) {
+      setScoreDetailsData([]);
+      setScoreDetailsError("");
+      setScoreDetailsLoading(false);
+      return;
+    }
+
     if (!user || user.role !== "juri") {
       setScoreDetailsData([]);
       setScoreDetailsError("");
@@ -194,6 +250,7 @@ export default function DashboardPage() {
   }, [pesertaData]);
 
   const topScores = useMemo(() => {
+    if (!SCORE_FEATURE_ENABLED) return [];
     return [...scoresData]
       .sort(
         (a, b) => Number(b.nilai || 0) - Number(a.nilai || 0)
@@ -243,8 +300,14 @@ export default function DashboardPage() {
       { label: "51-75", min: 51, max: 75, value: 0 },
       { label: "76-100", min: 76, max: 100, value: 0 },
     ];
+
+    if (!SCORE_FEATURE_ENABLED) {
+      return buckets;
+    }
+
     scoresData.forEach((score) => {
-      const nilai = Number(score.nilai) || 0;
+      const resolved = resolveScoreValue(score);
+      const nilai = resolved != null ? resolved : 0;
       const bucket = buckets.find((b) => nilai >= b.min && nilai <= b.max);
       if (bucket) bucket.value += 1;
     });
@@ -271,6 +334,7 @@ export default function DashboardPage() {
         berita={beritaData}
         juara={juaraData}
         scores={scoresData}
+        scoreFeatureEnabled={SCORE_FEATURE_ENABLED}
       />
     );
   }
@@ -286,6 +350,7 @@ export default function DashboardPage() {
         detailsLoading={scoreDetailsLoading}
         detailsError={scoreDetailsError}
         generalError={error}
+        scoreFeatureEnabled={SCORE_FEATURE_ENABLED}
       />
     );
   }
@@ -302,16 +367,66 @@ export default function DashboardPage() {
     );
   }
 
+  // Calculate comprehensive stats
+  const comprehensiveStats = useMemo(() => {
+    // Events stats
+    const openEvents = eventsData.filter(e => e.status === 'open').length;
+    const draftEvents = eventsData.filter(e => e.status === 'draft').length;
+    const closedEvents = eventsData.filter(e => e.status === 'closed').length;
+    const featuredEvents = eventsData.filter(e => e.isFeatured).length;
+    
+    // Peserta stats
+    const pendingPeserta = pesertaData.filter(p => p.status === 'pending').length;
+    const approvedPeserta = pesertaData.filter(p => p.status === 'approved').length;
+    const rejectedPeserta = pesertaData.filter(p => p.status === 'rejected').length;
+    const totalMembers = pesertaData.reduce((sum, p) => sum + (p.detailPeserta?.length || 0), 0);
+    
+    // Partnerships stats
+    const mediaPartners = partnershipsData.filter(p => p.type === 'media_partner').length;
+    const sponsors = partnershipsData.filter(p => p.type === 'sponsor').length;
+    const supportedBy = partnershipsData.filter(p => p.type === 'supported_by').length;
+    
+    return {
+      events: {
+        total: eventsData.length,
+        open: openEvents,
+        draft: draftEvents,
+        closed: closedEvents,
+        featured: featuredEvents,
+      },
+      peserta: {
+        total: pesertaData.length,
+        pending: pendingPeserta,
+        approved: approvedPeserta,
+        rejected: rejectedPeserta,
+        totalMembers,
+      },
+      berita: {
+        total: stats.berita,
+        recent: beritaData.slice(0, 5).length,
+      },
+      users: {
+        total: stats.users,
+      },
+      juara: {
+        total: juaraData.length,
+      },
+      merchandise: merchandiseData.length,
+      partnerships: {
+        total: partnershipsData.length,
+        mediaPartners,
+        sponsors,
+        supportedBy,
+      },
+      gallery: galleryData.length,
+    };
+  }, [eventsData, pesertaData, stats, beritaData, juaraData, merchandiseData, partnershipsData, galleryData]);
+
   return (
     <PageContainer>
       <PageHeader
-        title={`Halo, ${user.username || user.email}`}
-        description={
-          <>
-            Selamat datang di dashboard admin Liga Pembaris. Pantau dan
-            kelola event, peserta, berita, dan user dari satu tempat.
-          </>
-        }
+        title={`Dashboard Admin`}
+        description="Ringkasan lengkap semua data sistem"
       />
       {user && user.isActive === false && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -321,219 +436,319 @@ export default function DashboardPage() {
       )}
 
       {error && (
-        <div className="text-sm text-red-500 border border-red-200 rounded-md px-3 py-2 bg-red-50">
+        <div className="text-sm text-red-500 border border-red-200 rounded-md px-3 py-2 bg-red-50 mb-4">
           {error}
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Event
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {loading ? "…" : stats.events}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Daftar event Liga / lomba
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Total Peserta
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {loading ? "…" : stats.peserta}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Tim yang sudah terdaftar
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              Berita / Pengumuman
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {loading ? "…" : stats.berita}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Informasi yang tayang di publik
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              User Terdaftar
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-3xl font-bold">
-              {loading ? "…" : stats.users}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Admin / operator / juri / peserta
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-4 mt-4">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">
-              Status Event Saat Ini
-            </CardTitle>
-            <span className="text-xs text-muted-foreground">
-              {loading ? "Menghitung..." : "Realtime"}
-            </span>
-          </CardHeader>
-          <CardContent>
-            <EventStatusChart data={eventsData} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Juara & Penghargaan
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {juaraData.slice(0, 4).map((item) => (
-              <div key={item.id} className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {item.peserta?.namaTim || "Tim tidak diketahui"}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {item.event?.namaEvent || "Event tidak diketahui"}
-                  </p>
-                </div>
-                <span className="rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xs px-2 py-0.5">
-                  {item.juara}
+      {/* Statistik Utama */}
+      <section className="mb-6">
+        <h2 className="text-lg font-semibold mb-3">Statistik Utama</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href="/dashboard/events" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Event
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px]">
+              <p className="text-3xl font-bold text-foreground">
+                {loading ? "…" : comprehensiveStats.events.total}
+              </p>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {comprehensiveStats.events.open} Open
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  {comprehensiveStats.events.draft} Draft
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-foreground border border-border">
+                  {comprehensiveStats.events.closed} Closed
                 </span>
               </div>
-            ))}
-            {!juaraData.length && (
-              <p className="text-xs text-muted-foreground">
-                Belum ada data juara.
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/dashboard/peserta" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Peserta
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px]">
+              <p className="text-3xl font-bold text-foreground">
+                {loading ? "…" : comprehensiveStats.peserta.total}
               </p>
-            )}
-          </CardContent>
-        </Card>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  {comprehensiveStats.peserta.approved} Approved
+                </span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                  {comprehensiveStats.peserta.pending} Pending
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Distribusi Score
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ScoreDistributionChart data={scoreDistribution} />
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/berita" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Berita
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px] flex flex-col justify-between">
+              <p className="text-3xl font-bold text-foreground">
+                {loading ? "…" : comprehensiveStats.berita.total}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Artikel & pengumuman
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Event Terpopuler
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {participantLeaders.length ? (
-              participantLeaders.map((event) => (
-                <div
-                  key={event.eventId}
-                  className="flex items-center justify-between rounded-md border border-slate-100 px-3 py-2"
-                >
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">
-                      {event.eventName}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {event.total} tim peserta
-                    </p>
+        <Link href="/dashboard/users" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Users
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px] flex flex-col justify-between">
+              <p className="text-3xl font-bold text-foreground">
+                {loading ? "…" : comprehensiveStats.users.total}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Admin, operator, juri, peserta
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        </div>
+      </section>
+
+      {/* Statistik Lainnya */}
+      <section className="mb-6">
+        <h2 className="text-lg font-semibold mb-3">Statistik Lainnya</h2>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href="/dashboard/juara" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer border-amber-200 bg-amber-50/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-amber-900">
+                Juara
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px] flex flex-col justify-between">
+              <p className="text-3xl font-bold text-amber-900">
+                {loading ? "…" : comprehensiveStats.juara.total}
+              </p>
+              <p className="text-xs text-amber-700 mt-2">
+                Pemenang terdaftar
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/dashboard/detail-peserta" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Anggota Tim
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px] flex flex-col justify-between">
+              <p className="text-3xl font-bold text-foreground">
+                {loading ? "…" : comprehensiveStats.peserta.totalMembers}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Total anggota dari semua tim
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/dashboard/merchandise" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Merchandise
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px] flex flex-col justify-between">
+              <p className="text-3xl font-bold text-foreground">
+                {loading ? "…" : comprehensiveStats.merchandise}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Produk tersedia
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/dashboard/gallery" className="block">
+          <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Galeri
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="min-h-[80px] flex flex-col justify-between">
+              <p className="text-3xl font-bold text-foreground">
+                {loading ? "…" : comprehensiveStats.gallery}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                Foto & dokumentasi
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+        </div>
+      </section>
+
+      {/* Detail & Widgets */}
+      <section className="mb-6">
+        <h2 className="text-lg font-semibold mb-3">Detail & Analisis</h2>
+        <div className="grid gap-4 lg:grid-cols-2">
+        {/* Left Column */}
+        <div className="space-y-4">
+          <Link href="/dashboard/partnerships" className="block">
+            <Card className="h-full hover:border-primary/40 hover:shadow-md transition-all cursor-pointer">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Kolaborasi
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="min-h-[80px]">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                  <p className="text-3xl font-bold text-foreground">
+                    {loading ? "…" : comprehensiveStats.partnerships.total}
+                  </p>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                      {comprehensiveStats.partnerships.mediaPartners} Media Partner
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">
+                      {comprehensiveStats.partnerships.sponsors} Sponsor
+                    </span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
+                      {comprehensiveStats.partnerships.supportedBy} Supported By
+                    </span>
                   </div>
-                  <TrendBadge value={event.total} />
                 </div>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Belum ada peserta yang terdaftar.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Score Tertinggi
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {topScores.length ? (
-              topScores.map((item) => (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Event Terpopuler
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {participantLeaders.length ? (
+                participantLeaders.map((event) => (
+                  <div
+                    key={event.eventId}
+                    className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">
+                        {event.eventName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {event.total} tim peserta
+                      </p>
+                    </div>
+                    <TrendBadge value={event.total} />
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Belum ada event dengan peserta.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right Column */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="flex items-center justify-between">
+              <CardTitle className="text-base font-semibold">
+                Status Event Saat Ini
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">
+                {loading ? "Menghitung..." : "Realtime"}
+              </span>
+            </CardHeader>
+            <CardContent>
+              <EventStatusChart data={eventsData} />
+            </CardContent>
+          </Card>
+        </div>
+        </div>
+
+        {/* Bottom Row - Juara & Ringkasan Grid */}
+        <div className="grid gap-4 lg:grid-cols-2 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Juara & Penghargaan
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {juaraData.slice(0, 4).map((item) => (
                 <div key={item.id} className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {item.peserta?.namaTim || "Tim tidak diketahui"}
                     </p>
-                    <p className="text-xs text-slate-500">
-                      Juri: {item.juri?.username || item.juri?.email || "-"}
+                    <p className="text-xs text-muted-foreground">
+                      {item.event?.namaEvent || "Event tidak diketahui"}
                     </p>
                   </div>
-                  <span className="rounded-full border border-slate-200 px-2 py-0.5 text-xs font-semibold">
-                    {item.nilai}
+                  <span className="rounded-full bg-amber-50 border border-amber-200 text-amber-600 text-xs px-2 py-0.5">
+                    {item.juara}
                   </span>
                 </div>
-              ))
-            ) : (
-              <p className="text-xs text-muted-foreground">
-                Belum ada penilaian.
+              ))}
+              {!juaraData.length && (
+                <p className="text-xs text-muted-foreground">
+                  Belum ada data juara.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base font-semibold">
+                Ringkasan Peserta
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                {comprehensiveStats.peserta.total} peserta aktif
               </p>
-            )}
-          </CardContent>
-        </Card>
+              <p className="text-xs text-muted-foreground">
+                {participantLeaders.length} event populer
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {juaraData.length} juara tercatat
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base font-semibold">
-              Ringkasan Peserta
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-slate-600">
-              {stats.peserta} peserta aktif
-            </p>
-            <p className="text-xs text-slate-500">
-              {participantLeaders.length} event populer
-            </p>
-            <p className="text-xs text-slate-500">
-              {juaraData.length} juara tercatat
-            </p>
-          </CardContent>
-        </Card>
-
-      </div>
-
-      <section className="mt-6">
-        <Card>
+        {/* Full Width Aktivitas */}
+        <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-base font-semibold">
               Aktivitas Terbaru
@@ -541,20 +756,20 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="p-2">
             {latestActivities.length ? (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-border">
                 {latestActivities.map((item, idx) => (
                   <li
                     key={`${item.type}-${idx}`}
-                    className="flex flex-col gap-1 px-4 py-3 text-sm text-slate-700 sm:flex-row sm:items-center sm:gap-4"
+                    className="flex flex-col gap-1 px-4 py-3 text-sm text-foreground sm:flex-row sm:items-center sm:gap-4"
                   >
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 sm:w-32">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground sm:w-32">
                       {item.type}
                     </p>
                     <div className="flex-1">
-                      <p className="font-semibold text-slate-900">
+                      <p className="font-semibold text-foreground">
                         {item.title}
                       </p>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-muted-foreground">
                         {item.meta || "-"}
                       </p>
                     </div>
@@ -638,9 +853,9 @@ function EventStatusChart({ data }) {
             className="h-full w-full rounded-full"
             style={{ background: `conic-gradient(${gradient})` }}
           />
-          <div className="absolute inset-6 rounded-full bg-white flex flex-col items-center justify-center">
+          <div className="absolute inset-6 rounded-full bg-card flex flex-col items-center justify-center">
             <p className="text-2xl font-semibold">{total}</p>
-            <p className="text-[11px] uppercase tracking-wide text-slate-400">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
               Total Event
             </p>
           </div>
@@ -655,10 +870,10 @@ function EventStatusChart({ data }) {
               style={{ backgroundColor: segment.color }}
             />
             <div className="flex-1">
-              <p className="text-sm font-medium text-slate-900">
+              <p className="text-sm font-medium text-foreground">
                 {segment.label}
               </p>
-              <div className="flex items-center text-xs text-slate-500 gap-2">
+              <div className="flex items-center text-xs text-muted-foreground gap-2">
                 <span>{segment.value} event</span>
                 <span>•</span>
                 <span>{segment.percentage}%</span>
@@ -677,11 +892,11 @@ function ScoreDistributionChart({ data }) {
     <div className="space-y-3">
       {data.map((bucket) => (
         <div key={bucket.label}>
-          <div className="flex items-center justify-between text-xs text-slate-500">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
             <span>{bucket.label}</span>
             <span>{bucket.value} score</span>
           </div>
-          <div className="h-2 rounded-full bg-slate-100">
+          <div className="h-2 rounded-full bg-muted">
             <div
               className="h-2 rounded-full bg-gradient-to-r from-slate-900 to-slate-500"
               style={{ width: `${(bucket.value / maxValue) * 100 || 4}%` }}
@@ -703,8 +918,8 @@ function TrendBadge({ value }) {
 
 function FocusEventNotice() {
   return (
-    <Card className="border border-dashed border-slate-300 bg-slate-50">
-      <CardContent className="py-6 text-sm text-slate-600 space-y-3">
+    <Card className="border border-dashed border-border bg-muted">
+      <CardContent className="py-6 text-sm text-muted-foreground space-y-3">
         <p>
           Anda belum memilih event fokus. Operator harus memilih satu event agar
           panel menampilkan informasi yang relevan.
@@ -727,7 +942,27 @@ function JuriDashboard({
   detailsLoading,
   detailsError,
   generalError,
+  scoreFeatureEnabled,
 }) {
+  if (!scoreFeatureEnabled) {
+    return (
+      <PageContainer>
+        <PageHeader
+          title={`Halo, ${user.username || user.email}`}
+          description="Panel penilaian sedang dinonaktifkan sementara."
+        />
+        {generalError && (
+          <p className="mb-4 text-sm text-red-500">{generalError}</p>
+        )}
+        <Card className="border border-dashed border-border bg-muted">
+          <CardContent className="py-6 text-sm text-muted-foreground">
+            Fitur score dan detail score sedang tidak tersedia. Silakan hubungi admin
+            bila memerlukan akses kembali.
+          </CardContent>
+        </Card>
+      </PageContainer>
+    );
+  }
   const [selectedScore, setSelectedScore] = useState(null);
 
   const assignedEvents = useMemo(() => {
@@ -787,6 +1022,15 @@ function JuriDashboard({
     { label: "Juara tercatat", value: scopedJuara.length },
   ];
 
+  const latestScores = useMemo(
+    () => (Array.isArray(scores) ? scores.slice(0, 5) : []),
+    [scores]
+  );
+  const recentAwards = useMemo(
+    () => (Array.isArray(scopedJuara) ? scopedJuara.slice(0, 5) : []),
+    [scopedJuara]
+  );
+
   return (
     <PageContainer>
       <PageHeader
@@ -804,13 +1048,13 @@ function JuriDashboard({
             {stats.map((stat) => (
               <Card
                 key={stat.label}
-                className="border border-slate-200 shadow-none"
+                className="border border-border shadow-none"
               >
                 <CardContent className="py-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {stat.label}
                   </p>
-                  <p className="mt-1 text-2xl font-semibold text-slate-900">
+                  <p className="mt-1 text-2xl font-semibold text-foreground">
                     {stat.value}
                   </p>
                 </CardContent>
@@ -820,131 +1064,152 @@ function JuriDashboard({
         </section>
 
         <section className="grid gap-5 lg:grid-cols-2">
-          <Card className="border border-slate-200 shadow-none">
+          <Card className="border border-border shadow-none">
             <CardHeader>
               <CardTitle className="text-base font-semibold">
                 Aksi penilaian
               </CardTitle>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Tinjau score yang telah dibuat admin/operator dan lengkapi detail kriteria jika diperlukan.
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-2 text-sm text-slate-600">
+              <div className="grid gap-2 text-sm text-muted-foreground">
                 {assignedEvents.length ? (
                   assignedEvents.map((event) => (
                     <div
                       key={event.id}
-                      className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+                      className="rounded-lg border border-border bg-muted px-3 py-2"
                     >
-                      <p className="font-semibold text-slate-900">
+                      <p className="font-semibold text-foreground">
                         {event.name}
                       </p>
-                      <p className="text-[11px] text-slate-500">
-                        {event.date ? formatDate(event.date) : "-"}
-                      </p>
+                      {event.date && (
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(event.date)}
+                        </p>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-500">
-                    Anda belum ditugaskan pada event mana pun.
+                  <p className="text-sm text-muted-foreground">
+                    Belum ada event yang ditugaskan untuk Anda.
                   </p>
                 )}
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <Link href="/dashboard/scores" className="sm:flex-1">
-                  <Button className="w-full">Kelola Score</Button>
-                </Link>
-                <Link href="/dashboard/score-details" className="sm:flex-1">
-                  <Button variant="outline" className="w-full">
-                    Kelola Detail Score
-                  </Button>
-                </Link>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Tab Score menampilkan ringkasan nilai, sedangkan tab Detail Score
-                dipakai untuk mengisi kriteria penilaian Anda.
-              </p>
-            </CardContent>
-          </Card>
 
-          <Card className="border border-slate-200 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold">
-                Score terakhir
-              </CardTitle>
-              <p className="text-sm text-slate-500">
-                Rekap penilaian yang sudah Anda kirim.
-              </p>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <p className="text-sm text-slate-500">Memuat data score...</p>
-              ) : scores.length ? (
-                <div className="max-h-[360px] space-y-3 overflow-y-auto pr-1">
-                  {scores.map((score) => (
-                    <div
-                      key={score.id}
-                      className="rounded-lg border border-slate-200 bg-white p-3"
-                    >
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            {score.peserta?.namaTim || "Tim tidak diketahui"}
-                          </p>
-                          <p className="text-xs text-slate-500">
-                            {score.event?.namaEvent || "Event tidak diketahui"}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-semibold text-slate-900">
-                            {score.nilai ?? "-"}
-                          </p>
-                          <p className="text-[11px] text-slate-400">
-                            {formatDate(score.createdAt)}
-                          </p>
-                        </div>
-                      </div>
-                      {score.catatan && (
-                        <p className="mt-2 text-xs text-slate-500 line-clamp-2">
-                          Catatan: {score.catatan}
-                        </p>
-                      )}
-                      <div className="mt-3 flex justify-end">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => setSelectedScore(score)}
-                        >
-                          Detail & catatan
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-500">
-                  Belum ada score yang dicatat.
+              <div className="space-y-3 border-t border-border pt-3 text-sm">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Score terbaru
                 </p>
-              )}
+                {latestScores.length ? (
+                  <div className="space-y-3">
+                    {latestScores.map((score) => {
+                      const resolvedValue = resolveScoreValue(score);
+                      const manualUsed = Boolean(
+                        score.useManualNilai && score.nilai != null
+                      );
+                      const detailScore = manualUsed
+                        ? null
+                        : calculateDetailScore(score.details);
+                      const detailUsed = !manualUsed && detailScore != null;
+                      const displayValue =
+                        resolvedValue != null
+                          ? formatScoreDisplay(resolvedValue, { decimals: 1 })
+                          : manualUsed && score.nilai != null
+                          ? formatScoreDisplay(score.nilai, { decimals: 1 })
+                          : "-";
+
+                      return (
+                        <div
+                          key={score.id}
+                          className="rounded-lg border border-border bg-card p-3"
+                        >
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                              <p className="font-semibold text-foreground">
+                                {score.peserta?.namaTim || "Tim tidak diketahui"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {score.event?.namaEvent || "Event tidak diketahui"}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-semibold text-foreground">
+                                {displayValue}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground">
+                                {formatDate(score.createdAt)}
+                                {manualUsed && (
+                                  <span className="ml-2 text-muted-foreground">
+                                    Manual
+                                  </span>
+                                )}
+                                {detailUsed && (
+                                  <span className="ml-2 text-emerald-600">
+                                    Otomatis
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          {score.catatan && (
+                            <p className="mt-2 text-xs text-muted-foreground line-clamp-2">
+                              Catatan: {score.catatan}
+                            </p>
+                          )}
+                          <div className="mt-3 flex justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => setSelectedScore(score)}
+                            >
+                              Detail & catatan
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Belum ada score yang dicatat.
+                  </p>
+                )}
+
+                <div>
+                  <p className="text-xs text-muted-foreground">Penghargaan:</p>
+                  {recentAwards.length ? (
+                    <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                      {recentAwards.map((award) => (
+                        <li key={award.id}>
+                          {award.event?.namaEvent || "Event"} • {award.juara}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Belum ada juara.</p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </section>
 
         <section className="grid gap-5 lg:grid-cols-2">
-          <Card className="border border-slate-200 shadow-none">
+          <Card className="border border-border shadow-none">
             <CardHeader>
               <CardTitle className="text-base font-semibold">
                 Detail score aktif
               </CardTitle>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Ringkasan kriteria per tim/event.
               </p>
             </CardHeader>
             <CardContent>
               {detailsLoading ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Memuat detail score...
                 </p>
               ) : groupedDetails.length ? (
@@ -952,33 +1217,33 @@ function JuriDashboard({
                   {groupedDetails.map((group) => (
                     <div
                       key={group.score?.id}
-                      className="rounded-xl border border-slate-200 bg-white p-3"
+                      className="rounded-xl border border-border bg-card p-3"
                     >
                       <div className="flex flex-col gap-1">
-                        <p className="font-semibold text-slate-900">
+                        <p className="font-semibold text-foreground">
                           {group.score?.peserta?.namaTim || "Tim tidak diketahui"}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-muted-foreground">
                           {group.score?.event?.namaEvent || "Event tidak diketahui"}
                         </p>
-                        <p className="text-[11px] text-slate-400">
+                        <p className="text-[11px] text-muted-foreground">
                           {group.items.length} kriteria
                         </p>
                       </div>
-                      <div className="mt-2 divide-y divide-slate-100">
+                      <div className="mt-2 divide-y divide-border">
                         {group.items.map((detail) => (
                           <div key={detail.id} className="py-2">
-                            <div className="flex flex-wrap items-center justify-between text-xs text-slate-600">
-                              <span className="font-semibold text-slate-900">
+                            <div className="flex flex-wrap items-center justify-between text-xs text-muted-foreground">
+                              <span className="font-semibold text-foreground">
                                 {detail.kriteria}
                               </span>
                               <span>Nilai: {detail.nilai}</span>
                             </div>
-                            <p className="text-[11px] text-slate-500">
+                            <p className="text-[11px] text-muted-foreground">
                               Bobot: {detail.bobot ?? "-"}
                             </p>
                             {detail.catatan && (
-                              <p className="mt-1 text-[11px] text-slate-500">
+                              <p className="mt-1 text-[11px] text-muted-foreground">
                                 {detail.catatan}
                               </p>
                             )}
@@ -989,7 +1254,7 @@ function JuriDashboard({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Belum ada detail score yang tercatat.
                 </p>
               )}
@@ -999,18 +1264,18 @@ function JuriDashboard({
             </CardContent>
           </Card>
 
-          <Card className="border border-slate-200 shadow-none">
+          <Card className="border border-border shadow-none">
             <CardHeader>
               <CardTitle className="text-base font-semibold">
                 Juara yang ditetapkan
               </CardTitle>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Ditetapkan oleh admin/operator berdasarkan penilaian Anda.
               </p>
             </CardHeader>
             <CardContent>
               {loading ? (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Memuat data juara...
                 </p>
               ) : scopedJuara.length ? (
@@ -1018,20 +1283,20 @@ function JuriDashboard({
                   {scopedJuara.map((item) => (
                     <div
                       key={item.id}
-                      className="rounded-lg border border-slate-200 bg-white p-3"
+                      className="rounded-lg border border-border bg-card p-3"
                     >
                       <div className="flex flex-col gap-1">
-                        <p className="font-semibold text-slate-900">
+                        <p className="font-semibold text-foreground">
                           {item.peserta?.namaTim || "Tim tidak diketahui"}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-muted-foreground">
                           {item.event?.namaEvent || "Event tidak diketahui"}
                         </p>
                         <p className="text-sm font-semibold text-emerald-600">
                           {item.juara}
                         </p>
                         {item.kategori && (
-                          <p className="text-[11px] text-slate-500">
+                          <p className="text-[11px] text-muted-foreground">
                             Kategori: {item.kategori}
                           </p>
                         )}
@@ -1040,7 +1305,7 @@ function JuriDashboard({
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-slate-500">
+                <p className="text-sm text-muted-foreground">
                   Belum ada data juara pada event Anda.
                 </p>
               )}
@@ -1055,7 +1320,7 @@ function JuriDashboard({
           if (!open) setSelectedScore(null);
         }}
       >
-        <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-slate-200 bg-white">
+        <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-border bg-card">
           <DialogHeader>
             <DialogTitle>Detail penilaian</DialogTitle>
             <DialogDescription>
@@ -1071,28 +1336,28 @@ function JuriDashboard({
               viewerDetails.map((detail) => (
                 <div
                   key={detail.id}
-                  className="rounded-md border border-slate-200 bg-white p-3"
+                  className="rounded-md border border-border bg-card p-3"
                 >
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-slate-900">
+                    <p className="text-sm font-semibold text-foreground">
                       {detail.kriteria}
                     </p>
-                    <span className="text-xs text-slate-600">
+                    <span className="text-xs text-muted-foreground">
                       Nilai: {detail.nilai}
                     </span>
                   </div>
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-muted-foreground">
                     Bobot: {detail.bobot ?? "-"}
                   </p>
                   {detail.catatan && (
-                    <p className="mt-2 text-xs text-slate-600">
+                    <p className="mt-2 text-xs text-muted-foreground">
                       {detail.catatan}
                     </p>
                   )}
                 </div>
               ))
             ) : (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Detail belum tersedia untuk score ini.
               </p>
             )}
@@ -1111,6 +1376,7 @@ function ParticipantDashboard({
   berita,
   juara,
   scores,
+  scoreFeatureEnabled,
 }) {
   const statusCounts = teams.reduce(
     (acc, team) => {
@@ -1131,9 +1397,11 @@ function ParticipantDashboard({
     );
   const latestNews = berita.slice(0, 3);
   const myAwards = juara.filter((item) => joinedTeamIds.has(item.pesertaId));
-  const myScores = scores
-    .filter((item) => joinedTeamIds.has(item.pesertaId))
-    .slice(0, 5);
+  const myScores = scoreFeatureEnabled
+    ? scores
+        .filter((item) => joinedTeamIds.has(item.pesertaId))
+        .slice(0, 5)
+    : [];
 
   return (
     <PageContainer>
@@ -1174,7 +1442,7 @@ function ParticipantDashboard({
                 event yang Anda ikuti
               </span>
             </div>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-muted-foreground">
               Pending: {statusCounts.pending || 0} • Disetujui:{" "}
               {statusCounts.approved || 0}
             </p>
@@ -1184,12 +1452,12 @@ function ParticipantDashboard({
 
       <section className="mt-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="text-sm font-semibold text-foreground">
             Event yang Diikuti
           </h2>
           <Link
             href="/dashboard/peserta"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground"
           >
             Kelola detail
           </Link>
@@ -1197,16 +1465,16 @@ function ParticipantDashboard({
         {teams.length ? (
           <div className="space-y-3">
             {teams.map((team) => (
-              <Card key={team.id} className="border border-slate-200">
+              <Card key={team.id} className="border border-border">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold text-slate-900">
+                  <CardTitle className="text-base font-semibold text-foreground">
                     {team.namaTim}
                   </CardTitle>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {team.event?.namaEvent || "Event belum diketahui"}
                   </p>
                 </CardHeader>
-                <CardContent className="text-xs text-slate-500 space-y-1">
+                <CardContent className="text-xs text-muted-foreground space-y-1">
                   <p>Status: {team.status}</p>
                   <p>
                     Anggota: {team.detailPeserta?.length || 0} • Juara:{" "}
@@ -1217,11 +1485,11 @@ function ParticipantDashboard({
             ))}
           </div>
         ) : loading ? (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Memuat daftar event yang Anda ikuti...
           </p>
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Belum ada pendaftaran event. Gunakan tab Event untuk mendaftar.
           </p>
         )}
@@ -1229,12 +1497,12 @@ function ParticipantDashboard({
 
       <section className="mt-6 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">
+          <h2 className="text-sm font-semibold text-foreground">
             Event yang Bisa Diikuti
           </h2>
           <Link
             href="/dashboard/events"
-            className="text-xs font-semibold text-slate-600 hover:text-slate-900"
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground"
           >
             Lihat semua
           </Link>
@@ -1242,12 +1510,12 @@ function ParticipantDashboard({
         {availableEvents.length ? (
           <div className="grid gap-3 md:grid-cols-2">
             {availableEvents.map((event) => (
-              <Card key={event.id} className="border border-slate-200">
+              <Card key={event.id} className="border border-border">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base font-semibold text-slate-900">
+                  <CardTitle className="text-base font-semibold text-foreground">
                     {event.namaEvent}
                   </CardTitle>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-muted-foreground">
                     {event.tempatEvent} •{" "}
                     {formatDate(event.tanggalEvent, {
                       day: "2-digit",
@@ -1255,7 +1523,7 @@ function ParticipantDashboard({
                     })}
                   </p>
                 </CardHeader>
-                <CardContent className="text-xs text-slate-500">
+                <CardContent className="text-xs text-muted-foreground">
                   Kuota {event.kuota ?? "-"} • Biaya{" "}
                   {new Intl.NumberFormat("id-ID", {
                     style: "currency",
@@ -1267,14 +1535,14 @@ function ParticipantDashboard({
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             Semua event yang terbuka sudah Anda ikuti.
           </p>
         )}
       </section>
 
       <section className="mt-6 space-y-4">
-        <Card className="border border-slate-200">
+        <Card className="border border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
               Berita Terbaru
@@ -1284,21 +1552,21 @@ function ParticipantDashboard({
             {latestNews.length ? (
               latestNews.map((item) => (
                 <div key={item.id}>
-                  <p className="font-semibold text-slate-900">{item.title}</p>
-                  <p className="text-xs text-slate-500">
+                  <p className="font-semibold text-foreground">{item.title}</p>
+                  <p className="text-xs text-muted-foreground">
                     {formatDate(item.tanggal)}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Belum ada berita terbaru.
               </p>
             )}
           </CardContent>
         </Card>
 
-        <Card className="border border-slate-200">
+        <Card className="border border-border">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-semibold">
               Score & Penghargaan
@@ -1308,17 +1576,43 @@ function ParticipantDashboard({
             {myScores.length ? (
               myScores.map((score) => (
                 <div key={score.id}>
-                  <p className="font-semibold text-slate-900">
+                  <p className="font-semibold text-foreground">
                     {score.event?.namaEvent}
                   </p>
-                  <p className="text-xs text-slate-500">
-                    Nilai: {score.nilai} • Juri:{" "}
-                    {score.juri?.username || score.juri?.email}
+                  <p className="text-xs text-muted-foreground">
+                    {(() => {
+                      const resolvedValue = resolveScoreValue(score);
+                      const manualUsed = Boolean(
+                        score.useManualNilai && score.nilai != null
+                      );
+                      const detailScore = manualUsed
+                        ? null
+                        : calculateDetailScore(score.details);
+                      const detailUsed = !manualUsed && detailScore != null;
+                      const displayValue =
+                        resolvedValue != null
+                          ? formatScoreDisplay(resolvedValue, {
+                              decimals: 1,
+                            })
+                          : "-";
+                      const sourceLabel = manualUsed
+                        ? "manual"
+                        : detailUsed
+                        ? "otomatis"
+                        : null;
+                      return (
+                        <>
+                          Nilai: {displayValue}
+                          {sourceLabel && ` (${sourceLabel})`} • Juri: {" "}
+                          {score.juri?.username || score.juri?.email}
+                        </>
+                      );
+                    })()}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Belum ada penilaian untuk tim Anda.
               </p>
             )}

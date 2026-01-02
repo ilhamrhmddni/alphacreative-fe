@@ -1,4 +1,5 @@
 import Link from "next/link";
+
 import { formatDate } from "@/lib/formatters";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
@@ -7,7 +8,14 @@ import { cn } from "@/lib/utils";
 
 export const revalidate = 300;
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+function getApiBaseUrl() {
+  const raw =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "http://localhost:4000/api";
+
+  return raw.replace(/\/$/, "");
+}
 
 export default async function ChampionsPage({ searchParams }) {
   const page = Number(searchParams?.page || 1);
@@ -20,7 +28,7 @@ export default async function ChampionsPage({ searchParams }) {
     if (page) params.set("page", String(page));
     if (limit) params.set("limit", String(limit));
 
-    const res = await fetch(`${API_URL}/public/champions?${params.toString()}`, {
+    const res = await fetch(`${getApiBaseUrl()}/public/champions?${params.toString()}`, {
       next: { revalidate: 300 },
     });
 
@@ -60,6 +68,62 @@ export default async function ChampionsPage({ searchParams }) {
   }));
   const meta = payload.meta || { total: 0, page, limit, totalPages: 0 };
 
+  const groupMap = new Map();
+  const groups = [];
+
+  const normalizeRank = (value) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 999;
+  };
+
+  champions.forEach((champion) => {
+    const eventId = champion.event?.id;
+    const key = eventId !== undefined && eventId !== null ? `event-${eventId}` : `event-${groups.length}`;
+
+    if (!groupMap.has(key)) {
+      groupMap.set(key, groups.length);
+      groups.push({
+        event: champion.event || null,
+        items: [],
+        sortDate: champion.event?.date ? new Date(champion.event.date).getTime() : 0,
+      });
+    }
+
+    const group = groups[groupMap.get(key)];
+    group.items.push(champion);
+
+    const currentEventDate = champion.event?.date ? new Date(champion.event.date).getTime() : 0;
+    if (currentEventDate && currentEventDate > (group.sortDate || 0)) {
+      group.sortDate = currentEventDate;
+      group.event = champion.event;
+    }
+  });
+
+  groups.forEach((group) => {
+    group.items.sort((a, b) => normalizeRank(a.rank) - normalizeRank(b.rank));
+  });
+
+  groups.sort((a, b) => (b.sortDate || 0) - (a.sortDate || 0));
+
+  const rankBadgeClass = (rank) => {
+    const numericRank = Number(rank);
+    if (numericRank === 1) return "bg-yellow-500/20 text-yellow-600";
+    if (numericRank === 2) return "bg-gray-300/30 text-gray-600";
+    if (numericRank === 3) return "bg-orange-500/20 text-orange-600";
+    return "bg-primary/10 text-primary";
+  };
+
+  const getRankNumber = (rank) => {
+    if (rank === null || rank === undefined) return "-";
+    const numeric = Number(rank);
+    if (Number.isFinite(numeric)) return String(numeric);
+    if (typeof rank === "string") {
+      const match = rank.match(/(\d+)/);
+      if (match) return match[0];
+    }
+    return "-";
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
@@ -81,70 +145,86 @@ export default async function ChampionsPage({ searchParams }) {
             </div>
           </header>
 
-          {champions.length === 0 ? (
+          {groups.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/60 bg-muted/10 p-8 text-center text-sm text-muted-foreground">
               Belum ada data juara yang dapat ditampilkan.
             </div>
           ) : (
-            <div className="space-y-4">
-              {champions.map((item) => (
-                <article
-                  key={`${item.id}-${item.rank}`}
-                  className="rounded-xl border border-border bg-card p-4 shadow-sm transition-all hover:border-primary/40 hover:shadow-md md:p-6"
+            <div className="space-y-6">
+              {groups.map((group, groupIdx) => (
+                <section
+                  key={group.event?.id || `group-${groupIdx}`}
+                  className="rounded-xl border border-border bg-card p-4 shadow-sm md:p-6"
                 >
-                  <div className="mb-4 flex flex-wrap items-start justify-between gap-4">
-                    <div>
-                      <p className="text-xs font-semibold uppercase tracking-wide text-primary/70">Peringkat</p>
-                      <p className="text-xl font-bold md:text-2xl">
-                        {String(item.rank).toLowerCase().includes("juara") ? item.rank : `Juara ${item.rank}`}
+                  <header className="mb-4 rounded-lg bg-primary/10 p-4 text-primary">
+                    <p className="text-xs font-semibold uppercase tracking-wider">Event</p>
+                    <h2 className="text-lg font-semibold md:text-xl">
+                      {group.event?.name || "Event belum dicatat"}
+                    </h2>
+                    {group.event?.date || group.event?.location ? (
+                      <p className="text-xs text-primary/90 md:text-sm">
+                        {group.event?.date ? formatDate(group.event.date) : "Tanggal menyusul"}
+                        {group.event?.location ? ` • ${group.event.location}` : ""}
                       </p>
-                    </div>
-                    <div className="text-right text-xs text-muted-foreground/80 md:text-sm">
-                      <p>Terakhir diperbarui</p>
-                      <p className="font-medium text-foreground">
-                        {formatDate(item.updatedAt)}
-                      </p>
-                    </div>
-                  </div>
+                    ) : null}
+                  </header>
 
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tim</h2>
-                      <p className="text-lg font-semibold text-foreground md:text-xl">
-                        {item.team?.name || "-"}
-                      </p>
-                      <p className="text-xs text-muted-foreground md:text-sm">
-                        Nomor Peserta: {item.team?.number || "-"}
-                      </p>
-                    </div>
-
-                    <div className="space-y-2">
-                      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Event</h2>
-                      <p className="text-lg font-semibold text-foreground md:text-xl">
-                        {item.event?.name || "Event belum dicatat"}
-                      </p>
-                      <p className="text-xs text-muted-foreground md:text-sm">
-                        {item.event ? `${formatDate(item.event.date)} • ${item.event.location || "Lokasi menyusul"}` : "-"}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-2 text-xs md:text-sm">
-                    <span className="rounded-full bg-primary/10 px-3 py-1 font-medium text-primary">
-                      {item.category}
-                    </span>
-                    {item.evidence && (
-                      <Link
-                        href={item.evidence}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center text-primary hover:text-primary/80"
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {group.items.map((item, idx) => (
+                      <article
+                        key={`${item.id || idx}-${item.rank}`}
+                        className="flex h-full flex-col rounded-lg border border-border bg-background/60 p-4 transition-all hover:border-primary/30 hover:bg-muted/40"
                       >
-                        Lihat Berkas Bukti
-                      </Link>
-                    )}
+                        <div className="mb-4 flex items-center justify-between">
+                          <span
+                            className={`inline-flex h-12 w-12 flex-col items-center justify-center rounded-full text-center ${rankBadgeClass(
+                              item.rank
+                            )}`}
+                          >
+                            <span className="text-[10px] font-semibold uppercase leading-none">Juara</span>
+                            <span className="text-sm font-bold leading-tight">{getRankNumber(item.rank)}</span>
+                          </span>
+                          <div className="text-right text-[11px] text-muted-foreground md:text-xs">
+                            <p>Terakhir diperbarui</p>
+                            <p className="font-medium text-foreground">{formatDate(item.updatedAt)}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-1 flex-col gap-3">
+                          <div>
+                            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tim</h3>
+                            <p className="text-base font-semibold text-foreground md:text-lg">
+                              {item.team?.name || "-"}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Nomor Peserta: {item.team?.number || "-"}
+                            </p>
+                          </div>
+                          <div>
+                            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kategori</h3>
+                            <p className="text-sm font-medium text-foreground">{item.category}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 flex items-center justify-between text-xs">
+                          <span className="rounded-full bg-primary/10 px-3 py-1 font-medium text-primary">
+                            {item.category}
+                          </span>
+                          {item.evidence && (
+                            <Link
+                              href={item.evidence}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center text-primary hover:text-primary/80"
+                            >
+                              Lihat Berkas
+                            </Link>
+                          )}
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                </article>
+                </section>
               ))}
             </div>
           )}
@@ -198,26 +278,4 @@ export default async function ChampionsPage({ searchParams }) {
       <Footer />
     </div>
   );
-}
-
-export async function generateStaticParams() {
-  try {
-    const res = await fetch(`${API_URL}/public/champions`, {
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) {
-      return [{}];
-    }
-    const json = await res.json();
-    const list = Array.isArray(json)
-      ? json
-      : Array.isArray(json?.data)
-      ? json.data
-      : [];
-    const pages = Math.max(1, Math.ceil(list.length / 10));
-    return Array.from({ length: pages }, (_, idx) => ({ page: String(idx + 1) }));
-  } catch (error) {
-    console.warn("generateStaticParams champions gagal:", error);
-    return [{}];
-  }
 }

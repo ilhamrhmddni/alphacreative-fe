@@ -77,7 +77,7 @@ export default function RegisterPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-500">Email</label>
+              <label className="text-sm font-medium text-muted-foreground">Email</label>
               <Input
                 type="email"
                 required
@@ -88,7 +88,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-500">Username</label>
+              <label className="text-sm font-medium text-muted-foreground">Username</label>
               <Input
                 required
                 value={form.username}
@@ -98,7 +98,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-500">Password</label>
+              <label className="text-sm font-medium text-muted-foreground">Password</label>
               <Input
                 type="password"
                 required
@@ -109,7 +109,7 @@ export default function RegisterPage() {
             </div>
 
             <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-500">Konfirmasi Password</label>
+              <label className="text-sm font-medium text-muted-foreground">Konfirmasi Password</label>
               <Input
                 type="password"
                 required
@@ -138,7 +138,7 @@ export default function RegisterPage() {
             </Button>
           </form>
 
-          <p className="mt-4 text-center text-sm text-slate-500">
+          <p className="mt-4 text-center text-sm text-muted-foreground">
             Sudah punya akun?{" "}
             <Button
               type="button"

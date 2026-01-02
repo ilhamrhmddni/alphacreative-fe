@@ -117,12 +117,12 @@ export default function UserFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-slate-100">
-          <DialogTitle className="text-base sm:text-lg font-semibold text-slate-900">
+      <DialogContent className="w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="text-base sm:text-lg font-semibold text-foreground">
             {isEdit ? "Edit User" : "Tambah User"}
           </DialogTitle>
-          <DialogDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <DialogDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {isEdit
               ? "Perbarui data user dan peran mereka."
               : availableRoleOptions.length === 1
@@ -133,7 +133,7 @@ export default function UserFormDialog({
 
         <form onSubmit={handleSubmit} className="px-5 pt-4 pb-6 space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Email <span className="text-red-500">*</span>
             </label>
             <Input
@@ -142,12 +142,12 @@ export default function UserFormDialog({
               value={form.email}
               onChange={(e) => handleChange("email", e.target.value)}
               placeholder="user@example.com"
-              className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Username <span className="text-red-500">*</span>
             </label>
             <Input
@@ -155,21 +155,21 @@ export default function UserFormDialog({
               value={form.username}
               onChange={(e) => handleChange("username", e.target.value)}
               placeholder="Nama pengguna"
-              className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Role <span className="text-red-500">*</span>
             </label>
             <Select
               value={form.role}
               onValueChange={(val) => handleChange("role", val)}
             >
-              <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:text-sm">
+              <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:text-sm">
                 <SelectValue placeholder="Pilih peran" />
               </SelectTrigger>
-              <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+              <SelectContent className="rounded-md border border-border bg-card shadow-md">
                 {availableRoleOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -180,7 +180,7 @@ export default function UserFormDialog({
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Status <span className="text-red-500">*</span>
             </label>
             <Select
@@ -189,10 +189,10 @@ export default function UserFormDialog({
                 handleChange("isActive", val === "true")
               }
             >
-              <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:text-sm">
+              <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:text-sm">
                 <SelectValue placeholder="Pilih status" />
               </SelectTrigger>
-              <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+              <SelectContent className="rounded-md border border-border bg-card shadow-md">
                 {STATUS_OPTIONS.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -204,7 +204,7 @@ export default function UserFormDialog({
 
           {!isEdit && (
             <div className="space-y-1.5">
-              <label className="text-xs sm:text-sm font-medium text-slate-900">
+              <label className="text-xs sm:text-sm font-medium text-foreground">
                 Password Sementara <span className="text-red-500">*</span>
               </label>
               <Input
@@ -213,9 +213,9 @@ export default function UserFormDialog({
                 value={form.password}
                 onChange={(e) => handleChange("password", e.target.value)}
                 placeholder="Minimal 6 karakter"
-                className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+                className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
               />
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Berikan password ini ke user dan minta mereka mengganti setelah
                 login.
               </p>
@@ -223,11 +223,11 @@ export default function UserFormDialog({
           )}
 
           {isEdit && onResetPassword && (
-            <div className="space-y-2 rounded-md border border-dashed border-slate-200 p-3">
-              <p className="text-sm font-semibold text-slate-900">
+            <div className="space-y-2 rounded-md border border-dashed border-border p-3">
+              <p className="text-sm font-semibold text-foreground">
                 Reset Password
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Atur ulang password user ke nilai default{" "}
                 <span className="font-semibold">12345678</span>. Ingatkan user
                 untuk mengganti password dari halaman profil mereka.
@@ -245,26 +245,26 @@ export default function UserFormDialog({
           )}
 
           <div className="space-y-1.5">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               NISN / NTA
             </label>
             <Input
               value={form.nisnNta}
               onChange={(e) => handleChange("nisnNta", e.target.value)}
               placeholder="Opsional"
-              className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Alamat
             </label>
             <Input
               value={form.alamat}
               onChange={(e) => handleChange("alamat", e.target.value)}
               placeholder="Alamat lengkap (opsional)"
-              className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 

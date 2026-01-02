@@ -43,7 +43,6 @@ export default function DetailPesertaFormDialog({
       : "",
     namaDetail: initialData?.namaDetail ?? "",
     tanggalLahir: toDateInputValue(initialData?.tanggalLahir),
-    umur: initialData?.umur != null ? String(initialData.umur) : "",
     nisnNta: initialData?.nisnNta ?? "",
     alamat: initialData?.alamat ?? "",
   }));
@@ -58,7 +57,6 @@ export default function DetailPesertaFormDialog({
         : "",
       namaDetail: initialData?.namaDetail ?? "",
       tanggalLahir: toDateInputValue(initialData?.tanggalLahir),
-      umur: initialData?.umur != null ? String(initialData.umur) : "",
       nisnNta: initialData?.nisnNta ?? "",
       alamat: initialData?.alamat ?? "",
     });
@@ -72,6 +70,28 @@ export default function DetailPesertaFormDialog({
     setForm((prev) => ({ ...prev, [field]: value }));
   }
 
+  function getAgeFromBirthdate(dateString) {
+    if (!dateString) return null;
+    const birth = new Date(dateString);
+    if (Number.isNaN(birth.getTime())) return null;
+
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    const dayDiff = today.getDate() - birth.getDate();
+
+    if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
+      age -= 1;
+    }
+
+    return age >= 0 ? age : null;
+  }
+
+  const calculatedAge = useMemo(
+    () => getAgeFromBirthdate(form.tanggalLahir),
+    [form.tanggalLahir]
+  );
+
   async function handleSubmit(e) {
     e.preventDefault();
     if (!onSubmit) return;
@@ -80,7 +100,7 @@ export default function DetailPesertaFormDialog({
       tanggalLahir: form.tanggalLahir
         ? new Date(form.tanggalLahir).toISOString()
         : null,
-      umur: form.umur !== "" ? Number(form.umur) : null,
+      umur: calculatedAge ?? null,
       nisnNta: form.nisnNta?.trim() || null,
       alamat: form.alamat?.trim() || null,
     };
@@ -105,15 +125,15 @@ export default function DetailPesertaFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-slate-200 bg-white p-0 shadow-lg sm:max-w-xl">
-        <DialogHeader className="border-b border-slate-100 px-5 pt-5 pb-3">
-          <DialogTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+      <DialogContent className="w-[95vw] max-w-lg rounded-xl border border-border bg-card p-0 shadow-lg sm:max-w-xl">
+        <DialogHeader className="border-b border-border px-5 pt-5 pb-3">
+          <DialogTitle className="text-base font-semibold text-foreground sm:text-lg">
             {dialogTitle}
           </DialogTitle>
-          <DialogDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+          <DialogDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
             {dialogDescription}
           </DialogDescription>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             Kolom bertanda <span className="text-red-500">*</span> wajib diisi.
           </p>
         </DialogHeader>
@@ -121,17 +141,17 @@ export default function DetailPesertaFormDialog({
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-5">
           {!isEdit && !presetPesertaId && (
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+              <Label className="text-xs font-medium text-foreground sm:text-sm">
                 Peserta / Tim <span className="text-red-500">*</span>
               </Label>
               <Select
                 value={form.pesertaId}
                 onValueChange={(value) => handleChange("pesertaId", value)}
               >
-                <SelectTrigger className="h-9 rounded-md border-slate-200 text-xs sm:text-sm">
+                <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
                   <SelectValue placeholder="Pilih peserta" />
                 </SelectTrigger>
-                <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                <SelectContent className="rounded-md border border-border bg-card shadow-md">
                   {parsedOptions.map((option) => (
                     <SelectItem key={option.value} value={option.value}>
                       {option.label}
@@ -148,25 +168,25 @@ export default function DetailPesertaFormDialog({
           )}
 
         {!isEdit && presetPesertaId && (
-          <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
+          <div className="rounded-md border border-border bg-muted p-3 text-xs text-muted-foreground">
             Terdaftar untuk tim{" "}
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-foreground">
               {presetPesertaLabel || "Tim tidak diketahui"}
             </span>
           </div>
         )}
 
         {isEdit && (
-          <div className="rounded-md border border-slate-100 bg-slate-50 p-3 text-xs text-slate-500">
+          <div className="rounded-md border border-border bg-muted p-3 text-xs text-muted-foreground">
             Terdaftar pada tim{" "}
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-foreground">
                 {initialData?.peserta?.namaTim || "Tim tidak diketahui"}
             </span>
           </div>
         )}
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+            <Label className="text-xs font-medium text-foreground sm:text-sm">
               Nama Anggota <span className="text-red-500">*</span>
             </Label>
             <Input
@@ -174,59 +194,61 @@ export default function DetailPesertaFormDialog({
               value={form.namaDetail}
               onChange={(e) => handleChange("namaDetail", e.target.value)}
               placeholder="Masukkan nama lengkap"
-              className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+              className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
             />
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+              <Label className="text-xs font-medium text-foreground sm:text-sm">
                 Tanggal Lahir
               </Label>
               <Input
                 type="date"
                 value={form.tanggalLahir}
                 onChange={(e) => handleChange("tanggalLahir", e.target.value)}
-                className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
               />
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+              <Label className="text-xs font-medium text-foreground sm:text-sm">
                 Umur
               </Label>
               <Input
-                type="number"
-                min="0"
-                value={form.umur}
-                onChange={(e) => handleChange("umur", e.target.value)}
-                placeholder="Misal 17"
-                className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                value={
+                  calculatedAge != null ? String(calculatedAge) : "-"
+                }
+                readOnly
+                className="h-9 cursor-not-allowed rounded-md border-border bg-muted text-xs text-muted-foreground sm:text-sm"
               />
+              <p className="text-[11px] text-muted-foreground">
+                Umur dihitung otomatis dari tanggal lahir.
+              </p>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+            <Label className="text-xs font-medium text-foreground sm:text-sm">
               NISN / NTA
             </Label>
             <Input
               value={form.nisnNta}
               onChange={(e) => handleChange("nisnNta", e.target.value)}
               placeholder="Opsional"
-              className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+              className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-slate-900 sm:text-sm">
+            <Label className="text-xs font-medium text-foreground sm:text-sm">
               Alamat
             </Label>
             <Input
               value={form.alamat}
               onChange={(e) => handleChange("alamat", e.target.value)}
               placeholder="Alamat lengkap (opsional)"
-              className="h-9 rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+              className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
             />
           </div>
 

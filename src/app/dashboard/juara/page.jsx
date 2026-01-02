@@ -27,50 +27,18 @@ import {
 
 import { JuaraTable } from "@/components/tables/juara-table";
 import JuaraFormDialog from "@/components/form/juara-form-dialog";
+import { resolveScoreValue } from "@/lib/utils";
 
 const SYSTEM_USER = {
   username: "Sistem",
   email: "system@auto",
 };
 
-function clamp(value, min = 0, max = 100) {
-  return Math.min(Math.max(Number(value) || 0, min), max);
-}
-
-function calculateDetailPoints(details) {
-  if (!Array.isArray(details) || !details.length) return null;
-  const valid = details.filter(
-    (item) => item && !Number.isNaN(Number(item.nilai))
-  );
-  if (!valid.length) return null;
-  const hasWeight = valid.some(
-    (item) => item.bobot !== undefined && item.bobot !== null
-  );
-
-  if (hasWeight) {
-    let weightedSum = 0;
-    valid.forEach((item) => {
-      const nilai = clamp(item.nilai, 0, 100);
-      const rawWeight = Number(item.bobot);
-      if (!Number.isNaN(rawWeight)) {
-        const weight = clamp(rawWeight, 0, 1);
-        weightedSum += nilai * weight;
-      }
-    });
-    return clamp(weightedSum, 0, 100);
-  }
-
-  const total = valid.reduce(
-    (sum, item) => sum + clamp(item.nilai, 0, 100),
-    0
-  );
-  return clamp(total / valid.length, 0, 100);
-}
+const SCORE_FEATURE_ENABLED = false;
 
 function resolveScorePoint(score) {
-  const detailPoints = calculateDetailPoints(score?.details);
-  if (detailPoints != null) return detailPoints;
-  return clamp(score?.nilai, 0, 100);
+  const resolved = resolveScoreValue(score);
+  return resolved != null ? resolved : 0;
 }
 
 export default function JuaraPage() {
@@ -154,6 +122,10 @@ export default function JuaraPage() {
 
   const fetchScores = useCallback(async () => {
     if (!user || initializing) return;
+    if (!SCORE_FEATURE_ENABLED) {
+      setScores([]);
+      return;
+    }
     try {
       const scoresEndpoint = operatorFocusEventId
         ? `/scores?eventId=${operatorFocusEventId}`
@@ -338,7 +310,7 @@ export default function JuaraPage() {
 
   if (initializing || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Memeriksa sesi...
       </div>
     );
@@ -350,8 +322,8 @@ export default function JuaraPage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-          <Card className="border border-dashed border-slate-300 bg-slate-50">
-            <CardContent className="py-6 text-sm text-slate-600">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardContent className="py-6 text-sm text-muted-foreground">
               {message}
             </CardContent>
           </Card>
@@ -511,14 +483,14 @@ export default function JuaraPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 px-4 py-4 sm:px-6">
+        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
                   {isParticipant ? "Pencapaian Tim Saya" : "Data Juara"}
                 </CardTitle>
-                <CardDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+                <CardDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {isParticipant
                     ? participantAwards > 0
                       ? `${participantAwards} penghargaan untuk tim Anda`
@@ -558,16 +530,16 @@ export default function JuaraPage() {
                     placeholder="Cari event, tim, atau kategori..."
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
-                    className="h-9 w-full rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                    className="h-9 w-full rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
                   />
                 </div>
 
                 <div className="flex w-full flex-wrap gap-2">
                   <Select value={eventFilter} onValueChange={setEventFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[180px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua event" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua event</SelectItem>
                       {eventOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -578,10 +550,10 @@ export default function JuaraPage() {
                   </Select>
 
                   <Select value={rankFilter} onValueChange={setRankFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[150px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[150px] sm:text-sm">
                       <SelectValue placeholder="Semua juara" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua juara</SelectItem>
                       {rankOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -623,13 +595,13 @@ export default function JuaraPage() {
             {error && <p className="text-[11px] text-red-500">{error}</p>}
 
             {filtered.length !== totalJuara && !isParticipant && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Menampilkan {filtered.length} dari {totalJuara} data juara.
               </p>
             )}
 
             {isParticipant && !filtered.length && (
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-muted-foreground">
                 Belum ada hasil juara yang tercatat untuk tim Anda.
               </p>
             )}
@@ -663,7 +635,7 @@ export default function JuaraPage() {
 
 function StatPill({ label, value, color = "slate" }) {
   const colorMap = {
-    slate: "bg-slate-100 text-slate-700 border-slate-200",
+    slate: "bg-muted text-foreground border-border",
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
   };
@@ -673,7 +645,7 @@ function StatPill({ label, value, color = "slate" }) {
     <span
       className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${classes}`}
     >
-      <span className="text-[10px] font-normal text-slate-500">{label}</span>
+      <span className="text-[10px] font-normal text-muted-foreground">{label}</span>
       <span className="ml-2 text-sm">{value}</span>
     </span>
   );

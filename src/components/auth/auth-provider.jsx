@@ -4,10 +4,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { get, post } from "@/lib/api";
 import { saveToken, clearToken, getToken } from "@/lib/auth";
+import { useDarkMode } from "@/hooks/use-dark-mode";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
+  // Initialize dark mode on app load
+  useDarkMode();
+
   const [user, setUser] = useState(null);
   const [role, setRole] = useState(null);
   const [initializing, setInitializing] = useState(true);

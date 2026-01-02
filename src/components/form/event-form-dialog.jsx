@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -29,12 +29,33 @@ import {
 } from "@/components/ui/alert-dialog";
 
 import { uploadEventPhoto } from "@/lib/upload";
+import {
+  numberFromValue,
+  sanitizeText,
+  stringOrEmpty,
+  toNullableText,
+} from "@/lib/form-helpers";
 
 function toDateInputValue(dateLike) {
   if (!dateLike) return "";
   const d = new Date(dateLike);
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
+}
+
+function createInitialForm(initialData) {
+  const tempat = sanitizeText(initialData?.tempatEvent);
+  return {
+    namaEvent: stringOrEmpty(initialData?.namaEvent),
+    deskripsiEvent: stringOrEmpty(initialData?.deskripsiEvent),
+    tanggalEvent: toDateInputValue(initialData?.tanggalEvent),
+    tempatEvent: tempat || "Balikpapan",
+    venue: stringOrEmpty(initialData?.venue),
+    status: stringOrEmpty(initialData?.status),
+    photoPath: stringOrEmpty(initialData?.photoPath),
+    kuota: stringOrEmpty(initialData?.kuota),
+    biaya: stringOrEmpty(initialData?.biaya),
+  };
 }
 
 export default function EventFormDialog({
@@ -48,39 +69,17 @@ export default function EventFormDialog({
   const [photoError, setPhotoError] = useState("");
 
   const [pendingFile, setPendingFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(initialData?.photoPath ?? "");
-
-  const [form, setForm] = useState(() => ({
-    namaEvent: initialData?.namaEvent ?? "",
-    deskripsiEvent: initialData?.deskripsiEvent ?? "",
-    tanggalEvent: toDateInputValue(initialData?.tanggalEvent),
-    tempatEvent: initialData?.tempatEvent ?? "Balikpapan",
-    venue: initialData?.venue ?? "",
-    status: initialData?.status ?? "",
-    kategori: initialData?.kategori ?? "",
-    photoPath: initialData?.photoPath ?? "",
-    kuota: initialData?.kuota ?? "",
-    biaya: initialData?.biaya ?? "",
-  }));
+  const initialFormState = useMemo(() => createInitialForm(initialData), [initialData]);
+  const [previewUrl, setPreviewUrl] = useState(initialFormState.photoPath);
+  const [form, setForm] = useState(initialFormState);
 
   useEffect(() => {
-    setForm({
-      namaEvent: initialData?.namaEvent ?? "",
-      deskripsiEvent: initialData?.deskripsiEvent ?? "",
-      tanggalEvent: toDateInputValue(initialData?.tanggalEvent),
-      tempatEvent: initialData?.tempatEvent ?? "Balikpapan",
-      venue: initialData?.venue ?? "",
-      status: initialData?.status ?? "",
-      kategori: initialData?.kategori ?? "",
-      photoPath: initialData?.photoPath ?? "",
-      kuota: initialData?.kuota ?? "",
-      biaya: initialData?.biaya ?? "",
-    });
+    setForm(initialFormState);
     setPhotoError("");
     setUploadingPhoto(false);
     setPendingFile(null);
-    setPreviewUrl(initialData?.photoPath ?? "");
-  }, [initialData]);
+    setPreviewUrl(initialFormState.photoPath);
+  }, [initialFormState]);
 
   useEffect(() => {
     if (!pendingFile) return;
@@ -123,22 +122,19 @@ export default function EventFormDialog({
         }
       }
 
-      const normalizedKuota =
-        form.kuota === "" || form.kuota == null ? null : Number(form.kuota);
-
-      const normalizedBiaya =
-        form.biaya === "" || form.biaya == null ? null : Number(form.biaya);
-
       const payload = {
-        ...form,
+        namaEvent: sanitizeText(form.namaEvent),
+        deskripsiEvent: toNullableText(form.deskripsiEvent),
+        tanggalEvent: form.tanggalEvent
+          ? new Date(form.tanggalEvent).toISOString()
+          : null,
+        tempatEvent: sanitizeText(form.tempatEvent) || "Balikpapan",
+        venue: toNullableText(form.venue),
+        status: toNullableText(form.status),
         photoPath: photoPath || null,
-        kuota: normalizedKuota,
-        biaya: normalizedBiaya,
+        kuota: numberFromValue(form.kuota),
+        biaya: numberFromValue(form.biaya),
       };
-
-      if (form.tanggalEvent) {
-        payload.tanggalEvent = new Date(form.tanggalEvent).toISOString();
-      }
 
       await onSubmit(payload);
     } finally {
@@ -157,21 +153,21 @@ export default function EventFormDialog({
           max-h-[90vh] overflow-y-auto
           p-0
           rounded-xl
-          border border-slate-200
-          bg-white
+          border border-border
+          bg-card
           shadow-lg
         "
       >
-        <DialogHeader className="px-5 pt-5 pb-2 border-b border-slate-100">
-          <DialogTitle className="text-base sm:text-lg font-semibold text-slate-900">
+        <DialogHeader className="px-5 pt-5 pb-2 border-b border-border">
+          <DialogTitle className="text-base sm:text-lg font-semibold text-foreground">
             {isEdit ? "Edit Event" : "Tambah Event"}
           </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-slate-500 mt-1">
+          <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
             {isEdit
               ? "Perbarui informasi event yang sudah terdaftar."
               : "Buat event baru untuk kalender Liga Pembaris."}
           </DialogDescription>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             Kolom bertanda <span className="text-red-500">*</span> wajib diisi.
           </p>
         </DialogHeader>
@@ -180,51 +176,34 @@ export default function EventFormDialog({
           {/* Nama, kategori, tanggal */}
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <label className="text-xs sm:text-sm font-medium text-slate-900">
+              <label className="text-xs sm:text-sm font-medium text-foreground">
                 Nama Event <span className="text-red-500">*</span>
               </label>
               <Input
                 required
                 value={form.namaEvent}
-                className="h-9 placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200"
+                className="h-9 placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border"
                 onChange={(e) => handleChange("namaEvent", e.target.value)}
               />
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-medium text-slate-800">
-                  Kategori{" "}
-                  <span className="text-[10px] sm:text-xs text-slate-400">
-                    (Opsional)
-                  </span>
-                </label>
-                <Input
-                  value={form.kategori}
-                  onChange={(e) => handleChange("kategori", e.target.value)}
-                  placeholder="Contoh: LKBB, Display"
-                  className="h-9 placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-medium text-slate-900">
-                  Tanggal Event <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="date"
-                  required
-                  value={form.tanggalEvent}
-                  className="h-9 placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200"
-                  onChange={(e) => handleChange("tanggalEvent", e.target.value)}
-                />
-              </div>
+            <div className="space-y-1.5">
+              <label className="text-xs sm:text-sm font-medium text-foreground">
+                Tanggal Event <span className="text-red-500">*</span>
+              </label>
+              <Input
+                type="date"
+                required
+                value={form.tanggalEvent}
+                className="h-9 placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border"
+                onChange={(e) => handleChange("tanggalEvent", e.target.value)}
+              />
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs sm:text-sm font-medium text-slate-800">
+              <label className="text-xs sm:text-sm font-medium text-foreground">
                 Deskripsi{" "}
-                <span className="text-[10px] sm:text-xs text-slate-400">
+                <span className="text-[10px] sm:text-xs text-muted-foreground">
                   (Opsional)
                 </span>
               </label>
@@ -235,7 +214,7 @@ export default function EventFormDialog({
                 }
                 rows={3}
                 placeholder="Tuliskan deskripsi singkat event…"
-                className="placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200 resize-none"
+                className="placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border resize-none"
               />
             </div>
           </div>
@@ -244,21 +223,21 @@ export default function EventFormDialog({
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-medium text-slate-900">
+                <label className="text-xs sm:text-sm font-medium text-foreground">
                   Tempat <span className="text-red-500">*</span>
                 </label>
                 <Input
                   required
                   value={form.tempatEvent}
-                  className="h-9 placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200"
+                  className="h-9 placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border"
                   onChange={(e) => handleChange("tempatEvent", e.target.value)}
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-medium text-slate-800">
+                <label className="text-xs sm:text-sm font-medium text-foreground">
                   Venue{" "}
-                  <span className="text-[10px] sm:text-xs text-slate-400">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
                     (Opsional)
                   </span>
                 </label>
@@ -266,15 +245,15 @@ export default function EventFormDialog({
                   value={form.venue}
                   onChange={(e) => handleChange("venue", e.target.value)}
                   placeholder="GOR, Lapangan A, dll"
-                  className="h-9 placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200"
+                  className="h-9 placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs sm:text-sm font-medium text-slate-800">
+              <label className="text-xs sm:text-sm font-medium text-foreground">
                 Status{" "}
-                <span className="text-[10px] sm:text-xs text-slate-400">
+                <span className="text-[10px] sm:text-xs text-muted-foreground">
                   (Opsional)
                 </span>
               </label>
@@ -282,10 +261,10 @@ export default function EventFormDialog({
                 value={form.status || ""}
                 onValueChange={(val) => handleChange("status", val)}
               >
-                <SelectTrigger className="h-9 w-full text-xs sm:text-sm rounded-md border-slate-200">
+                <SelectTrigger className="h-9 w-full text-xs sm:text-sm rounded-md border-border">
                   <SelectValue placeholder="Pilih status (opsional)" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-slate-200 shadow-md rounded-md">
+                <SelectContent className="bg-card border border-border shadow-md rounded-md">
                   <SelectItem value="open">Open</SelectItem>
                   <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="closed">Closed</SelectItem>
@@ -298,9 +277,9 @@ export default function EventFormDialog({
           <div className="space-y-3">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-medium text-slate-800">
+                <label className="text-xs sm:text-sm font-medium text-foreground">
                   Kuota Peserta{" "}
-                  <span className="text-[10px] sm:text-xs text-slate-400">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
                     (Opsional)
                   </span>
                 </label>
@@ -310,14 +289,14 @@ export default function EventFormDialog({
                   value={form.kuota}
                   onChange={(e) => handleChange("kuota", e.target.value)}
                   placeholder="Misal 20"
-                  className="h-9 placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200"
+                  className="h-9 placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs sm:text-sm font-medium text-slate-800">
+                <label className="text-xs sm:text-sm font-medium text-foreground">
                   Biaya Pendaftaran (Rp){" "}
-                  <span className="text-[10px] sm:text-xs text-slate-400">
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">
                     (Opsional)
                   </span>
                 </label>
@@ -327,7 +306,7 @@ export default function EventFormDialog({
                   value={form.biaya}
                   onChange={(e) => handleChange("biaya", e.target.value)}
                   placeholder="Misal 150000"
-                  className="h-9 placeholder:text-slate-400 text-xs sm:text-sm rounded-md border-slate-200"
+                  className="h-9 placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border"
                 />
               </div>
             </div>
@@ -335,9 +314,9 @@ export default function EventFormDialog({
 
           {/* Media */}
           <div className="space-y-2">
-            <label className="text-xs sm:text-sm font-medium text-slate-800">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Foto Event{" "}
-              <span className="text-[10px] sm:text-xs text-slate-400">
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
                 (Opsional)
               </span>
             </label>
@@ -349,12 +328,12 @@ export default function EventFormDialog({
                 onChange={handlePhotoChange}
                 className="
                   block w-full text-xs sm:text-sm
-                  text-slate-600
+                  text-muted-foreground
                   file:mr-3 file:rounded-md
-                  file:border file:border-slate-200
-                  file:bg-white file:px-3 file:py-1.5
+                  file:border file:border-border
+                  file:bg-card file:px-3 file:py-1.5
                   file:text-xs file:font-medium
-                  file:hover:bg-slate-50
+                  file:hover:bg-muted
                   cursor-pointer
                 "
               />
@@ -372,10 +351,10 @@ export default function EventFormDialog({
                     </Button>
                   </AlertDialogTrigger>
 
-                  <AlertDialogContent className="sm:max-w-md bg-white rounded-xl border border-slate-200">
+                  <AlertDialogContent className="sm:max-w-md bg-card rounded-xl border border-border">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Preview Foto Event</AlertDialogTitle>
-                      <AlertDialogDescription className="text-xs text-slate-500">
+                      <AlertDialogDescription className="text-xs text-muted-foreground">
                         {pendingFile
                           ? "Ini preview foto yang akan diunggah saat kamu menyimpan."
                           : "Ini foto yang saat ini tersimpan untuk event ini."}
@@ -386,7 +365,7 @@ export default function EventFormDialog({
                       <img
                         src={previewUrl || form.photoPath}
                         alt="Preview foto event"
-                        className="max-h-[60vh] max-w-full object-contain rounded-md border border-slate-200"
+                        className="max-h-[60vh] max-w-full object-contain rounded-md border border-border"
                       />
                     </div>
 
@@ -399,7 +378,7 @@ export default function EventFormDialog({
             </div>
 
             {!pendingFile && form.photoPath && (
-              <p className="text-[11px] text-slate-500 break-all">
+              <p className="text-[11px] text-muted-foreground break-all">
                 Foto tersimpan:
                 <span className="font-medium ml-1">{form.photoPath}</span>
               </p>

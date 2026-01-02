@@ -14,6 +14,7 @@ export function HeroSection({ heroEvent, stats }) {
     stats: { participantCount: heroEvent.stats?.participantCount || 0 },
     status: heroEvent.status || "upcoming",
     isFeatured: heroEvent.isFeatured,
+    categories: Array.isArray(heroEvent.categories) ? heroEvent.categories : [],
   } : {
     name: "Kejuaraan LKBB Nasional 2024",
     date: new Date("2024-12-15").toISOString(), // valid ISO untuk Countdown
@@ -21,6 +22,7 @@ export function HeroSection({ heroEvent, stats }) {
     stats: { participantCount: 52 },
     status: "open",
     isFeatured: false,
+    categories: [],
   };
   
   const statData = stats || {
@@ -30,13 +32,13 @@ export function HeroSection({ heroEvent, stats }) {
   };
 
   return (
-    <section className="relative flex min-h-[90vh] items-center overflow-hidden px-6 pt-20">
+    <section className="section-white relative flex min-h-[90vh] items-center overflow-hidden px-4 pt-20 sm:px-6">
       <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
       <div className="absolute right-0 top-1/4 h-96 w-96 rounded-full bg-primary/10 blur-3xl" />
       <div className="absolute bottom-0 left-0 h-64 w-64 rounded-full bg-primary/5 blur-3xl" />
 
       <div className="container relative z-10 mx-auto max-w-6xl">
-        <div className="grid items-center gap-12 lg:grid-cols-2">
+        <div className="grid items-center gap-8 sm:gap-12 lg:grid-cols-2">
           <div className="space-y-8">
             <div>
               <span className="mb-6 inline-block rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary">
@@ -109,6 +111,7 @@ export function HeroSection({ heroEvent, stats }) {
                   <MapPin className="h-4 w-4 text-primary" />
                   {event.location}
                 </div>
+                {/* Kategori detail disembunyikan di hero karena kurang relevan */}
               </div>
 
               <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">

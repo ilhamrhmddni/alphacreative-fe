@@ -13,17 +13,17 @@ export function CategoriesSection({ categories }) {
   // Fallback jika data tidak ada
   const categoryList = categories || [];
   return (
-    <section id="categories" className="px-6 py-24">
+    <section id="categories" className="section-white px-4 py-20 sm:px-6 sm:py-28">
       <div className="container mx-auto max-w-6xl">
-        <div className="mb-16 text-center">
+        <div className="mb-12 sm:mb-16 text-center">
           <p className="mb-3 text-sm font-medium text-primary">KATEGORI</p>
-          <h2 className="mb-4 text-3xl font-bold tracking-tight md:text-4xl">Jenis Kompetisi</h2>
-          <p className="mx-auto max-w-xl text-muted-foreground">
+          <h2 className="text-3xl font-bold tracking-tight md:text-4xl">Jenis Kompetisi</h2>
+          <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
             Berbagai kategori kompetisi yang dikelola dalam Liga Pembaris
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {categoryList.map((category) => {
             const Icon = iconMap[category.name] || Award;
             return (

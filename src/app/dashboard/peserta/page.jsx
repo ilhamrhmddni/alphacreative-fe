@@ -132,6 +132,7 @@ export default function PesertaPage() {
   useEffect(() => {
     let data = [...peserta];
 
+    // Text filter - search across multiple fields
     if (filterText.trim()) {
       const text = filterText.toLowerCase();
       data = data.filter((item) => {
@@ -140,15 +141,18 @@ export default function PesertaPage() {
           (item.namaPerwakilan || "").toLowerCase().includes(text) ||
           (item.noPeserta || "").toLowerCase().includes(text) ||
           (item.user?.email || "").toLowerCase().includes(text) ||
-          (item.event?.namaEvent || "").toLowerCase().includes(text)
+          (item.event?.namaEvent || "").toLowerCase().includes(text) ||
+          (item.eventCategory?.name || "").toLowerCase().includes(text)
         );
       });
     }
 
+    // Event filter
     if (eventFilter !== "all") {
       data = data.filter((item) => String(item.eventId) === eventFilter);
     }
 
+    // Status filter - champion/pending/complete status
     if (statusFilter === "juara") {
       data = data.filter((item) => (item.juara?.length || 0) > 0);
     } else if (statusFilter === "belum") {
@@ -193,7 +197,7 @@ export default function PesertaPage() {
 
   if (initializing || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Memeriksa sesi...
       </div>
     );
@@ -203,8 +207,8 @@ export default function PesertaPage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-          <Card className="border border-dashed border-slate-300 bg-slate-50">
-            <CardContent className="py-6 text-sm text-slate-600">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardContent className="py-6 text-sm text-muted-foreground">
               Pilih event fokus di tab Profil untuk mengelola peserta.
             </CardContent>
           </Card>
@@ -405,20 +409,22 @@ export default function PesertaPage() {
     }
   }
 
+
+
   const filtersActive =
     Boolean(filterText) || eventFilter !== "all" || statusFilter !== "all";
 
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 px-4 py-4 sm:px-6">
+        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
                   {isParticipant ? "Tim Saya" : "Peserta"}
                 </CardTitle>
-                <CardDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+                <CardDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {isParticipant
                     ? "Lihat ringkasan tim Anda dan anggota yang terdaftar."
                     : totalPeserta > 0
@@ -482,16 +488,16 @@ export default function PesertaPage() {
                         placeholder="Cari tim, perwakilan, atau email..."
                         value={filterText}
                         onChange={(e) => setFilterText(e.target.value)}
-                        className="h-9 w-full rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                        className="h-9 w-full rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
                       />
                     </div>
 
                     <div className="flex w-full flex-wrap gap-2">
                       <Select value={eventFilter} onValueChange={setEventFilter}>
-                        <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[180px] sm:text-sm">
+                        <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                           <SelectValue placeholder="Semua event" />
                         </SelectTrigger>
-                        <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                        <SelectContent className="rounded-md border border-border bg-card shadow-md">
                           <SelectItem value="all">Semua event</SelectItem>
                           {eventOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
@@ -502,10 +508,10 @@ export default function PesertaPage() {
                       </Select>
 
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[150px] sm:text-sm">
+                        <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[150px] sm:text-sm">
                           <SelectValue placeholder="Semua status" />
                         </SelectTrigger>
-                        <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                        <SelectContent className="rounded-md border border-border bg-card shadow-md">
                           {STATUS_FILTERS.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
@@ -544,7 +550,7 @@ export default function PesertaPage() {
                 </div>
 
                 {filtered.length !== totalPeserta && (
-                  <p className="text-[11px] text-slate-500">
+                  <p className="text-[11px] text-muted-foreground">
                     Menampilkan {filtered.length} dari {totalPeserta} peserta.
                   </p>
                 )}
@@ -571,6 +577,7 @@ export default function PesertaPage() {
           onSubmit={handleSubmitForm}
           events={events}
           users={pesertaUsers}
+          defaultEventId={operatorFocusEventId ?? undefined}
         />
       )}
       {isParticipant && (
@@ -605,7 +612,7 @@ export default function PesertaPage() {
 
 function StatPill({ label, value, color = "slate" }) {
   const colorMap = {
-    slate: "bg-slate-100 text-slate-700 border-slate-200",
+    slate: "bg-muted text-foreground border-border",
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
   };
@@ -615,7 +622,7 @@ function StatPill({ label, value, color = "slate" }) {
     <span
       className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${classes}`}
     >
-      <span className="text-[10px] font-normal text-slate-500">{label}</span>
+      <span className="text-[10px] font-normal text-muted-foreground">{label}</span>
       <span className="ml-2 text-sm">{value}</span>
     </span>
   );
@@ -632,7 +639,7 @@ function ParticipantTeamPanel({
 }) {
   if (loading) {
     return (
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-muted-foreground">
         Memuat informasi tim Anda...
       </p>
     );
@@ -640,7 +647,7 @@ function ParticipantTeamPanel({
 
   if (!teams.length) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-600">
+      <div className="rounded-lg border border-dashed border-border bg-muted px-4 py-5 text-sm text-muted-foreground">
         Tim Anda belum terdaftar. Hubungi admin untuk memastikan data peserta
         sudah dimasukkan ke sistem.
       </div>
@@ -730,61 +737,63 @@ function ParticipantTeamCard({
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-      <div className="border-b border-slate-100 bg-gradient-to-br from-white to-slate-50 px-5 py-5">
+    <div className="rounded-2xl border border-border bg-card shadow-sm">
+      <div className="border-b border-border bg-gradient-to-br from-white to-slate-50 px-5 py-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-wide text-slate-400">
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">
               Nama Tim
             </p>
-            <p className="text-xl font-semibold text-slate-900">
+            <p className="text-xl font-semibold text-foreground">
               {team.namaTim || "-"}
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Perwakilan: {team.namaPerwakilan || "-"}
             </p>
           </div>
-          <div className="space-y-1 text-right text-slate-600">
+          <div className="space-y-1 text-right text-muted-foreground">
             {renderParticipantStatus(team.status)}
             <div className="text-sm">
-              <p className="text-xs uppercase tracking-wide text-slate-400">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
                 Event
               </p>
-              <p className="font-semibold text-slate-900">
+              <p className="font-semibold text-foreground">
                 {team.event?.namaEvent || "-"}
               </p>
-              <p className="text-xs text-slate-500">
-                {team.event?.kategori || "Kategori belum diatur"}
+              <p className="text-xs text-muted-foreground">
+                {team.eventCategory?.name
+                  ? `Kategori: ${team.eventCategory.name}`
+                  : "Tanpa kategori khusus"}
               </p>
             </div>
           </div>
         </div>
-        <dl className="mt-4 grid gap-3 text-sm text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+        <dl className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Akun Peserta
             </dt>
-            <dd className="text-slate-900">{team.user?.email || "-"}</dd>
+            <dd className="text-foreground">{team.user?.email || "-"}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Tanggal Daftar
             </dt>
-            <dd className="text-slate-900">{formatDate(registrationDate)}</dd>
+            <dd className="text-foreground">{formatDate(registrationDate)}</dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Gelar / Juara
             </dt>
-            <dd className="text-slate-900">
+            <dd className="text-foreground">
               {gelar || "Belum memperoleh gelar"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs uppercase tracking-wide text-slate-400">
+            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
               Kuota anggota
             </dt>
-            <dd className="text-slate-900">
+            <dd className="text-foreground">
               {detailList.length} anggota terdaftar
             </dd>
           </div>
@@ -794,10 +803,10 @@ function ParticipantTeamCard({
       <div className="px-5 py-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-base font-semibold text-slate-900">
+            <p className="text-base font-semibold text-foreground">
               Detail Anggota
             </p>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-muted-foreground">
               Lengkapi profil anggota untuk mempermudah verifikasi data.
             </p>
           </div>
@@ -817,28 +826,28 @@ function ParticipantTeamCard({
             {detailList.map((detail, idx) => (
               <article
                 key={detail.id ?? idx}
-                className="rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 text-sm text-slate-600"
+                className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground"
               >
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span className="font-semibold uppercase tracking-wide text-slate-400">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="font-semibold uppercase tracking-wide text-muted-foreground">
                     Anggota #{idx + 1}
                   </span>
                   <div className="flex items-center gap-2">
                     {detail.umur != null && (
-                      <span className="text-slate-900">{detail.umur} tahun</span>
+                      <span className="text-foreground">{detail.umur} tahun</span>
                     )}
                     {canManageDetails && (
                       <>
                         <button
                           type="button"
-                          className="rounded-full border border-slate-200 p-1 text-slate-500 hover:bg-white"
+                          className="rounded-full border border-border p-1 text-muted-foreground hover:bg-card"
                           onClick={() => onEditDetail?.(team, detail)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
-                          className="rounded-full border border-slate-200 p-1 text-rose-600 hover:bg-white"
+                          className="rounded-full border border-border p-1 text-rose-600 hover:bg-card"
                           onClick={() => onDeleteDetail?.(detail)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
@@ -847,19 +856,19 @@ function ParticipantTeamCard({
                     )}
                   </div>
                 </div>
-                <p className="mt-2 text-base font-semibold text-slate-900">
+                <p className="mt-2 text-base font-semibold text-foreground">
                   {detail.namaDetail || "Belum diisi"}
                 </p>
-                <dl className="mt-2 grid grid-cols-2 gap-2 text-[11px] uppercase tracking-wide text-slate-400">
+                <dl className="mt-2 grid grid-cols-2 gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
                   <div>
                     <dt>Tanggal lahir</dt>
-                    <dd className="text-sm normal-case text-slate-800">
+                    <dd className="text-sm normal-case text-foreground">
                       {formatDate(detail.tanggalLahir)}
                     </dd>
                   </div>
                   <div>
                     <dt>Catatan usia</dt>
-                    <dd className="text-sm normal-case text-slate-800">
+                    <dd className="text-sm normal-case text-foreground">
                       {detail.umur != null ? `${detail.umur} tahun` : "-"}
                     </dd>
                   </div>
@@ -868,21 +877,21 @@ function ParticipantTeamCard({
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          <div className="mt-4 rounded-lg border border-dashed border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
             Belum ada detail anggota yang tercatat. Gunakan tombol &quot;Tambah
             Anggota&quot; untuk melengkapi data tim.
           </div>
         )}
       </div>
 
-      <div className="border-t border-slate-100 px-5 py-5">
+      <div className="border-t border-border px-5 py-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-2">
             <div>
-              <p className="text-base font-semibold text-slate-900">
+              <p className="text-base font-semibold text-foreground">
                 Link Drive Foto
               </p>
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-muted-foreground">
                 Tambahkan tautan folder foto tim Anda untuk mempermudah panitia.
               </p>
             </div>
@@ -914,7 +923,7 @@ function ParticipantTeamCard({
                 }
               }}
               disabled={!hasPartisipasi || saving}
-              className="h-9 rounded-md border-slate-200 text-xs sm:text-sm"
+              className="h-9 rounded-md border-border text-xs sm:text-sm"
             />
             <div className="flex justify-end gap-2">
               {hasChanges && (

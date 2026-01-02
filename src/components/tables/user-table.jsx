@@ -36,8 +36,8 @@ function roleLabel(role) {
 
 function statusClasses(isActive) {
   return isActive
-    ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-    : "bg-slate-100 text-slate-600 border border-slate-200";
+    ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+    : "bg-muted text-muted-foreground border border-border";
 }
 
 export function UsersTable({
@@ -62,7 +62,7 @@ export function UsersTable({
 
   if (!hasData) {
     return (
-      <div className="px-4 py-8 text-center text-sm text-slate-500">
+      <div className="px-4 py-8 text-center text-sm text-muted-foreground">
         Belum ada user terdaftar.
       </div>
     );
@@ -76,23 +76,23 @@ export function UsersTable({
           return (
             <div
               key={rowUser.id}
-              className="rounded-xl border border-slate-200 bg-white p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
+              className="rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
             >
             <div className="flex items-start justify-between gap-2">
               <div className="space-y-1">
-                <p className="font-semibold text-base text-slate-900">
+                <p className="font-semibold text-base text-foreground">
                   {rowUser.username}
                 </p>
-                <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                   <Mail className="h-3.5 w-3.5" />
                   {rowUser.email}
                 </span>
-                <p className="text-[11px] uppercase tracking-wide text-slate-400">
+                <p className="text-[11px] uppercase tracking-wide text-muted-foreground/60">
                   {rowUser.role}
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1 text-right">
-                <span className="text-[11px] font-semibold text-slate-400">
+                <span className="text-[11px] font-semibold text-muted-foreground/60">
                   No. {startIndex + idx}
                 </span>
                 <span
@@ -141,10 +141,10 @@ export function UsersTable({
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </AlertDialogTrigger>
-                  <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+                  <AlertDialogContent className="rounded-xl border border-border bg-card">
                     <AlertDialogHeader>
                       <AlertDialogTitle>Hapus user?</AlertDialogTitle>
-                      <AlertDialogDescription className="text-sm text-slate-600">
+                      <AlertDialogDescription className="text-sm text-muted-foreground">
                         User <b>{rowUser.username}</b> akan dihapus permanen dan tidak
                         bisa login lagi.
                       </AlertDialogDescription>
@@ -171,7 +171,7 @@ export function UsersTable({
         <div className="w-full overflow-x-auto py-1">
           <Table className="w-full">
             <TableHeader>
-              <TableRow className="border-b bg-slate-50 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <TableRow className="border-b bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                 <TableHead className="w-[6%] px-4 py-3 text-center">No</TableHead>
                 <TableHead className="w-[30%] px-4 py-3">User</TableHead>
                 <TableHead className="w-[24%] px-4 py-3">Email</TableHead>
@@ -186,25 +186,25 @@ export function UsersTable({
                 )}
               </TableRow>
             </TableHeader>
-            <TableBody className="divide-y divide-slate-100 bg-white">
+            <TableBody className="divide-y divide-border">
               {users.map((rowUser, idx) => {
                 const rowCanManage = !canManageUser || canManageUser(rowUser);
                 return (
                   <TableRow
                     key={rowUser.id}
-                    className="text-sm text-slate-700 transition-colors hover:bg-slate-50"
+                    className="text-sm text-foreground transition-colors hover:bg-muted/50"
                   >
-                    <TableCell className="px-4 py-3 text-center text-xs font-semibold text-slate-500">
+                    <TableCell className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">
                       {startIndex + idx}
                     </TableCell>
                     <TableCell className="px-4 py-3 align-top">
-                      <p className="font-medium text-slate-900">{rowUser.username}</p>
+                      <p className="font-medium text-foreground">{rowUser.username}</p>
                     </TableCell>
                     <TableCell className="px-4 py-3 align-top text-sm">
                       {rowUser.email}
                     </TableCell>
                     <TableCell className="px-4 py-3 align-top">
-                      <span className="text-xs uppercase tracking-wide text-slate-500">
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground">
                         {roleLabel(rowUser.role)}
                       </span>
                     </TableCell>
@@ -255,10 +255,10 @@ export function UsersTable({
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </AlertDialogTrigger>
-                            <AlertDialogContent className="rounded-xl border border-slate-200 bg-white">
+                            <AlertDialogContent className="rounded-xl border border-border bg-card">
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Hapus user?</AlertDialogTitle>
-                                <AlertDialogDescription className="text-sm text-slate-600">
+                                <AlertDialogDescription className="text-sm text-muted-foreground">
                                   User <b>{rowUser.username}</b> akan dihapus dan tidak
                                   bisa login lagi.
                                 </AlertDialogDescription>
@@ -296,22 +296,22 @@ function TableSkeleton() {
         {rows.map((_, idx) => (
           <div
             key={`users-mobile-skeleton-${idx}`}
-            className="space-y-2 rounded-xl border border-slate-100 bg-slate-50 p-3"
+            className="space-y-2 rounded-xl border border-border bg-muted p-3"
           >
-            <div className="h-4 w-2/3 rounded bg-slate-200" />
-            <div className="h-3 w-1/2 rounded bg-slate-200" />
-            <div className="h-3 w-3/4 rounded bg-slate-200" />
+            <div className="h-4 w-2/3 rounded bg-muted" />
+            <div className="h-3 w-1/2 rounded bg-muted" />
+            <div className="h-3 w-3/4 rounded bg-muted" />
           </div>
         ))}
       </div>
       <div className="hidden w-full overflow-x-auto sm:block">
         <table className="w-full">
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-border">
             {rows.map((_, idx) => (
               <tr key={`users-desktop-skeleton-${idx}`} className="animate-pulse">
-                {Array.from({ length: 6 }).map((__, colIdx) => (
+              {Array.from({ length: 6 }).map((__, colIdx) => (
                   <td key={colIdx} className="px-4 py-3">
-                    <div className="h-4 rounded bg-slate-200" />
+                    <div className="h-4 bg-muted rounded" />
                   </td>
                 ))}
               </tr>

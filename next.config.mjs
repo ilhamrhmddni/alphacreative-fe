@@ -1,16 +1,17 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
+export default {
   reactCompiler: true,
   images: {
-    domains: [
-      "localhost",
-      "127.0.0.1",
-      "iili.io",
-      "res.cloudinary.com",
-      "images.unsplash.com",
+    unoptimized: true,
+    remotePatterns: [
+      { hostname: "localhost" },
+      { hostname: "127.0.0.1" },
+      { hostname: "iili.io" },
+      { hostname: "res.cloudinary.com" },
+      { hostname: "images.unsplash.com" },
     ],
   },
+  compress: true,
   output: "export",
+  productionBrowserSourceMaps: false,
 };
-
-export default nextConfig;

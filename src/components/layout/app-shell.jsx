@@ -93,14 +93,20 @@ export default function AppShell({ children, roles }) {
           onToggleMobileSidebar={() => setMobileOpen((prev) => !prev)}
         />
 
-        {/* SIDEBAR MOBILE: MUNCUL DARI ATAS DI BAWAH NAVBAR */}
+        {/* SIDEBAR MOBILE: PANEL MUNCUL DARI SAMPING */}
         {mobileOpen && (
-          <div className="md:hidden border-b bg-background">
-            <Sidebar
-              mode="mobile"
-              onNavigate={() => setMobileOpen(false)}
-              locked={navigationLocked}
+          <div className="md:hidden">
+            <div
+              className="fixed inset-0 z-40 bg-black/40"
+              onClick={() => setMobileOpen(false)}
             />
+            <aside className="fixed inset-y-0 left-0 z-50 w-64 max-w-[80vw] overflow-y-auto border-r border-border bg-background shadow-lg">
+              <Sidebar
+                mode="mobile"
+                onNavigate={() => setMobileOpen(false)}
+                locked={navigationLocked}
+              />
+            </aside>
           </div>
         )}
 

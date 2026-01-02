@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Dialog,
@@ -27,7 +28,12 @@ import {
   AlertDialogDescription,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { uploadEventPhoto as uploadImage } from "@/lib/upload";
+import { uploadNewsPhoto as uploadImage } from "@/lib/upload";
+import { resolveMediaUrl } from "@/lib/utils";
+import {
+  sanitizeText,
+  stringOrEmpty,
+} from "@/lib/form-helpers";
 import { Bold, CornerDownLeft, Italic, Quote, X } from "lucide-react";
 
 function toDateInputValue(dateLike) {
@@ -35,6 +41,25 @@ function toDateInputValue(dateLike) {
   const d = new Date(dateLike);
   if (Number.isNaN(d.getTime())) return "";
   return d.toISOString().slice(0, 10);
+}
+
+function createInitialForm(initialData) {
+  const eventId =
+    initialData?.eventId ?? initialData?.event?.id ?? null;
+  const tags = Array.isArray(initialData?.tags)
+    ? initialData.tags
+        .map((tag) => sanitizeText(tag))
+        .filter((tag, idx, arr) => tag && arr.indexOf(tag) === idx)
+    : [];
+
+  return {
+    title: stringOrEmpty(initialData?.title),
+    deskripsi: stringOrEmpty(initialData?.deskripsi),
+    tanggal: toDateInputValue(initialData?.tanggal),
+    photoPath: stringOrEmpty(initialData?.photoPath),
+    eventId: eventId != null ? String(eventId) : "",
+    tags,
+  };
 }
 
 export default function NewsFormDialog({
@@ -45,20 +70,10 @@ export default function NewsFormDialog({
   eventOptions = [],
   eventsLoading = false,
 }) {
-  const [form, setForm] = useState(() => ({
-    title: initialData?.title ?? "",
-    deskripsi: initialData?.deskripsi ?? "",
-    tanggal: toDateInputValue(initialData?.tanggal),
-    photoPath: initialData?.photoPath ?? "",
-    eventId: initialData?.eventId
-      ? String(initialData.eventId)
-      : initialData?.event?.id
-      ? String(initialData.event.id)
-      : "",
-    tags: Array.isArray(initialData?.tags) ? initialData.tags : [],
-  }));
+  const initialFormState = useMemo(() => createInitialForm(initialData), [initialData]);
+  const [form, setForm] = useState(initialFormState);
   const [pendingFile, setPendingFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(initialData?.photoPath ?? "");
+  const [previewUrl, setPreviewUrl] = useState(initialFormState.photoPath);
   const [photoError, setPhotoError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
@@ -67,26 +82,15 @@ export default function NewsFormDialog({
   const textareaRef = useRef(null);
 
   useEffect(() => {
-    setForm({
-      title: initialData?.title ?? "",
-      deskripsi: initialData?.deskripsi ?? "",
-      tanggal: toDateInputValue(initialData?.tanggal),
-      photoPath: initialData?.photoPath ?? "",
-      eventId: initialData?.eventId
-        ? String(initialData.eventId)
-        : initialData?.event?.id
-        ? String(initialData.event.id)
-        : "",
-      tags: Array.isArray(initialData?.tags) ? initialData.tags : [],
-    });
+    setForm(initialFormState);
     setPendingFile(null);
-    setPreviewUrl(initialData?.photoPath ?? "");
+    setPreviewUrl(initialFormState.photoPath);
     setPhotoError("");
     setSubmitting(false);
     setUploadingPhoto(false);
     setEventError("");
     setTagInput("");
-  }, [initialData]);
+  }, [initialFormState]);
 
   useEffect(() => {
     if (!pendingFile) return;
@@ -110,7 +114,7 @@ export default function NewsFormDialog({
   }
 
   function handleAddTag(value) {
-    const nextValue = (value ?? tagInput).trim();
+    const nextValue = sanitizeText(value ?? tagInput);
     if (!nextValue) return;
     setForm((prev) => {
       if (prev.tags.includes(nextValue)) return prev;
@@ -221,13 +225,18 @@ export default function NewsFormDialog({
       }
 
       const payload = {
-        title: form.title,
-        deskripsi: form.deskripsi,
+        title: sanitizeText(form.title),
+        deskripsi: stringOrEmpty(form.deskripsi),
         tanggal: form.tanggal ? new Date(form.tanggal).toISOString() : null,
         photoPath: photoPath || null,
         eventId: Number(form.eventId),
-        tags: form.tags,
+        tags: form.tags.map((tag) => sanitizeText(tag)).filter(Boolean),
       };
+
+      if (!Number.isFinite(payload.eventId)) {
+        setEventError("Pilih event terkait.");
+        return;
+      }
 
       await onSubmit(payload);
     } finally {
@@ -237,32 +246,35 @@ export default function NewsFormDialog({
 
   const isEdit = Boolean(initialData);
   const isBusy = submitting || uploadingPhoto;
-  const previewSource = useMemo(
-    () => previewUrl || form.photoPath,
-    [previewUrl, form.photoPath]
-  );
+  const previewSource = useMemo(() => {
+    if (previewUrl) return previewUrl;
+    if (form.photoPath) {
+      return resolveMediaUrl(form.photoPath) || form.photoPath;
+    }
+    return "";
+  }, [previewUrl, form.photoPath]);
   const noEventsAvailable = !eventOptions.length;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-lg sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-xl border border-slate-200 bg-white p-0 shadow-lg">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b border-slate-100">
-          <DialogTitle className="text-base sm:text-lg font-semibold text-slate-900">
+      <DialogContent className="w-[95vw] max-w-lg sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="text-base sm:text-lg font-semibold text-foreground">
             {isEdit ? "Edit Berita" : "Tambah Berita"}
           </DialogTitle>
-          <DialogDescription className="text-xs sm:text-sm text-slate-500 mt-1">
+          <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
             {isEdit
               ? "Perbarui informasi berita yang tampil ke publik."
               : "Unggah berita atau pengumuman baru untuk pengunjung."}
           </DialogDescription>
-          <p className="mt-2 text-[11px] text-slate-400">
+          <p className="mt-2 text-[11px] text-muted-foreground">
             Kolom bertanda <span className="text-red-500">*</span> wajib diisi.
           </p>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="px-5 pt-4 pb-6 space-y-4">
           <div className="space-y-2">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Judul Berita <span className="text-red-500">*</span>
             </label>
             <Input
@@ -270,12 +282,12 @@ export default function NewsFormDialog({
               value={form.title}
               onChange={(e) => handleChange("title", e.target.value)}
               placeholder="Masukkan judul berita"
-              className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Event Terkait <span className="text-red-500">*</span>
             </label>
             <Select
@@ -283,10 +295,10 @@ export default function NewsFormDialog({
               onValueChange={(value) => handleChange("eventId", value)}
               disabled={eventsLoading || !eventOptions.length || isBusy}
             >
-              <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:text-sm">
+              <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:text-sm">
                 <SelectValue placeholder={eventsLoading ? "Memuat event..." : "Pilih event"} />
               </SelectTrigger>
-              <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+              <SelectContent className="rounded-md border border-border bg-card shadow-md">
                 {eventOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -305,7 +317,7 @@ export default function NewsFormDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Tanggal Tayang <span className="text-red-500">*</span>
             </label>
             <Input
@@ -313,12 +325,12 @@ export default function NewsFormDialog({
               required
               value={form.tanggal}
               onChange={(e) => handleChange("tanggal", e.target.value)}
-              className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Deskripsi <span className="text-red-500">*</span>
             </label>
             <div className="flex flex-wrap gap-1">
@@ -366,12 +378,12 @@ export default function NewsFormDialog({
               onChange={(e) => handleChange("deskripsi", e.target.value)}
               placeholder="Tuliskan isi berita atau pengumuman..."
               ref={textareaRef}
-              className="rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+              className="rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs sm:text-sm font-medium text-slate-900">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Tag Berita
             </label>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -380,7 +392,7 @@ export default function NewsFormDialog({
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagKeyDown}
                 placeholder="Tekan Enter untuk menambahkan tag"
-                className="h-9 rounded-md border-slate-200 text-xs sm:text-sm placeholder:text-slate-400"
+                className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
                 disabled={isBusy}
               />
               <Button
@@ -398,12 +410,12 @@ export default function NewsFormDialog({
                 {form.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600"
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                   >
                     {tag}
                     <button
                       type="button"
-                      className="rounded-full p-0.5 text-slate-400 hover:text-slate-600"
+                      className="rounded-full p-0.5 text-muted-foreground hover:text-muted-foreground"
                       onClick={() => handleRemoveTag(tag)}
                       aria-label={`Hapus tag ${tag}`}
                     >
@@ -416,9 +428,9 @@ export default function NewsFormDialog({
           </div>
 
           <div className="space-y-2">
-            <label className="text-xs sm:text-sm font-medium text-slate-800">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Foto Pendukung{" "}
-              <span className="text-[10px] sm:text-xs text-slate-400">
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
                 (Opsional)
               </span>
             </label>
@@ -426,7 +438,7 @@ export default function NewsFormDialog({
               type="file"
               accept="image/*"
               onChange={handlePhotoChange}
-              className="block w-full cursor-pointer text-xs text-slate-600 file:mr-3 file:rounded-md file:border file:border-slate-200 file:bg-white file:px-3 file:py-1.5 file:text-xs file:font-medium file:hover:bg-slate-50 sm:text-sm"
+              className="block w-full cursor-pointer text-xs text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-xs file:font-medium file:hover:bg-muted sm:text-sm"
             />
 
             {previewSource && (
@@ -441,21 +453,26 @@ export default function NewsFormDialog({
                     Lihat preview
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="sm:max-w-md rounded-xl border border-slate-200 bg-white">
+                <AlertDialogContent className="sm:max-w-md rounded-xl border border-border bg-card">
                   <AlertDialogHeader>
                     <AlertDialogTitle>Preview Foto</AlertDialogTitle>
-                    <AlertDialogDescription className="text-xs text-slate-500">
+                    <AlertDialogDescription className="text-xs text-muted-foreground">
                       {pendingFile
                         ? "Ini adalah gambar yang baru kamu pilih."
                         : "Ini foto yang tersimpan saat ini."}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="mt-2 flex w-full justify-center">
-                    <image
-                      src={previewSource}
-                      alt="Preview foto berita"
-                      className="max-h-[60vh] max-w-full rounded-md border border-slate-200 object-contain"
-                    />
+                    <div className="relative max-h-[60vh] w-full overflow-hidden rounded-md border border-border">
+                      <Image
+                        src={previewSource}
+                        alt="Preview foto berita"
+                        width={640}
+                        height={360}
+                        className="h-auto w-full object-contain"
+                        unoptimized
+                      />
+                    </div>
                   </div>
                   <div className="mt-4 flex justify-end">
                     <AlertDialogCancel>Tutup</AlertDialogCancel>
@@ -465,7 +482,7 @@ export default function NewsFormDialog({
             )}
 
             {!pendingFile && form.photoPath && (
-              <p className="text-[11px] text-slate-500 break-all">
+              <p className="text-[11px] text-muted-foreground break-all">
                 Foto tersimpan:
                 <span className="ml-1 font-medium">{form.photoPath}</span>
               </p>

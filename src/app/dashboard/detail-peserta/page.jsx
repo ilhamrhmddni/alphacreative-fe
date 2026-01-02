@@ -27,11 +27,13 @@ import {
 
 import { DetailPesertaTable } from "@/components/tables/detail-peserta-table";
 import DetailPesertaFormDialog from "@/components/form/detail-peserta-form-dialog";
+import { RegistrationProgress } from "@/components/peserta/registration-progress";
 
 export default function DetailPesertaPage() {
   const router = useRouter();
   const { user, initializing } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
+  const isParticipant = user?.role === "peserta";
   const isOperator = user?.role === "operator";
   const operatorFocusEventId = isOperator ? user?.focusEventId : null;
   const needsFocusSelection = isOperator && !operatorFocusEventId;
@@ -122,6 +124,7 @@ export default function DetailPesertaPage() {
   useEffect(() => {
     let data = [...enrichedDetails];
 
+    // Text filter - search across member name and team
     if (filterText.trim()) {
       const text = filterText.toLowerCase();
       data = data.filter((item) => {
@@ -133,12 +136,14 @@ export default function DetailPesertaPage() {
       });
     }
 
+    // Event filter
     if (eventFilter !== "all") {
       data = data.filter(
         (item) => String(item.peserta?.event?.id) === eventFilter
       );
     }
 
+    // Team filter
     if (teamFilter !== "all") {
       data = data.filter((item) => String(item.pesertaId) === teamFilter);
     }
@@ -194,7 +199,7 @@ export default function DetailPesertaPage() {
 
   if (initializing || !user) {
     return (
-      <div className="flex h-screen items-center justify-center text-sm text-slate-500">
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
         Memeriksa sesi...
       </div>
     );
@@ -204,8 +209,8 @@ export default function DetailPesertaPage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-          <Card className="border border-dashed border-slate-300 bg-slate-50">
-            <CardContent className="py-6 text-sm text-slate-600">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardContent className="py-6 text-sm text-muted-foreground">
               Pilih event fokus terlebih dahulu pada tab Profil untuk mengelola detail peserta.
             </CardContent>
           </Card>
@@ -273,17 +278,70 @@ export default function DetailPesertaPage() {
   const filtersActive =
     Boolean(filterText) || eventFilter !== "all" || teamFilter !== "all";
 
+  // For participants, show progress view
+  if (isParticipant) {
+    const userPeserta = pesertaList.find((p) => p.userId === user.id);
+    const userDetails = userPeserta ? enrichedDetails.filter((d) => d.pesertaId === userPeserta.id) : [];
+
+    return (
+      <div className="min-h-screen">
+        <main className="container mx-auto max-w-4xl px-3 py-4 sm:px-4">
+          <RegistrationProgress
+            pesertaData={userPeserta}
+            detailPesertaData={userDetails}
+            onAddDetail={handleAdd}
+            onViewDetail={() => {
+              // Scroll to detail section below
+              document.getElementById("detail-section")?.scrollIntoView({ behavior: "smooth" });
+            }}
+            onGoToEvents={() => router.push("/dashboard/events")}
+          />
+
+          {/* Detail Section for participants */}
+          {userDetails.length > 0 && (
+            <Card id="detail-section" className="mt-6">
+              <CardHeader>
+                <CardTitle>Anggota Tim Anda</CardTitle>
+                <CardDescription>
+                  Daftar anggota yang terdaftar dalam tim
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <DetailPesertaTable
+                  items={userDetails}
+                  loading={loading}
+                  canEdit={true}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                />
+              </CardContent>
+            </Card>
+          )}
+        </main>
+
+        <DetailPesertaFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          initialData={editingDetail}
+          pesertaOptions={userPeserta ? [{ value: userPeserta.id, label: userPeserta.namaTim }] : []}
+          onSubmit={handleSubmitForm}
+        />
+      </div>
+    );
+  }
+
+  // For admin/operator, show full management view
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <CardHeader className="border-b border-slate-100 px-4 py-4 sm:px-6">
+        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
-                <CardTitle className="text-base font-semibold text-slate-900 sm:text-lg">
+                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
                   Detail Peserta
                 </CardTitle>
-                <CardDescription className="mt-1 text-xs text-slate-500 sm:text-sm">
+                <CardDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
                   {totalDetails > 0
                     ? `${totalDetails} anggota dalam ${uniqueTeams} tim`
                     : "Belum ada anggota tim. Tambahkan detail peserta untuk melengkapi profil."}
@@ -306,16 +364,16 @@ export default function DetailPesertaPage() {
                     placeholder="Cari anggota, tim, atau event..."
                     value={filterText}
                     onChange={(e) => setFilterText(e.target.value)}
-                    className="h-9 w-full rounded-md border-slate-200 text-xs placeholder:text-slate-400 sm:text-sm"
+                    className="h-9 w-full rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
                   />
                 </div>
 
                 <div className="flex w-full flex-wrap gap-2">
                   <Select value={eventFilter} onValueChange={setEventFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[180px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua event" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua event</SelectItem>
                       {eventOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -326,10 +384,10 @@ export default function DetailPesertaPage() {
                   </Select>
 
                   <Select value={teamFilter} onValueChange={setTeamFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-slate-200 text-xs sm:w-[160px] sm:text-sm">
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[160px] sm:text-sm">
                       <SelectValue placeholder="Semua tim" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-md border border-slate-200 bg-white shadow-md">
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua tim</SelectItem>
                       {teamFilterOptions.map((option) => (
                         <SelectItem key={option.value} value={option.value}>
@@ -371,7 +429,7 @@ export default function DetailPesertaPage() {
             {error && <p className="text-[11px] text-red-500">{error}</p>}
 
             {filtered.length !== totalDetails && (
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Menampilkan {filtered.length} dari {totalDetails} detail.
               </p>
             )}
@@ -402,7 +460,7 @@ export default function DetailPesertaPage() {
 
 function StatPill({ label, value, color = "slate" }) {
   const colorMap = {
-    slate: "bg-slate-100 text-slate-700 border-slate-200",
+    slate: "bg-muted text-foreground border-border",
     emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
     amber: "bg-amber-50 text-amber-700 border-amber-200",
   };
@@ -412,7 +470,7 @@ function StatPill({ label, value, color = "slate" }) {
     <span
       className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-wide ${classes}`}
     >
-      <span className="text-[10px] font-normal text-slate-500">{label}</span>
+      <span className="text-[10px] font-normal text-muted-foreground">{label}</span>
       <span className="ml-2 text-sm">{value}</span>
     </span>
   );

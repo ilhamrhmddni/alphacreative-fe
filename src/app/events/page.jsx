@@ -15,7 +15,7 @@ const statusMap = {
   open: { label: "Pendaftaran Dibuka", tone: "bg-emerald-500/10 text-emerald-600" },
   upcoming: { label: "Segera Dibuka", tone: "bg-amber-500/10 text-amber-600" },
   ongoing: { label: "Sedang Berlangsung", tone: "bg-sky-500/10 text-sky-600" },
-  closed: { label: "Pendaftaran Ditutup", tone: "bg-slate-400/20 text-slate-600" },
+  closed: { label: "Pendaftaran Ditutup", tone: "bg-muted text-muted-foreground" },
 };
 
 function normalizeStatus(status) {
@@ -55,7 +55,22 @@ export default async function EventsPage() {
         location: item.tempatEvent || item.location || "Lokasi belum ditentukan",
         venue: item.venue || null,
         status: normalizeStatus(item.status),
-        category: item.kategori || item.category || "Event Lainnya",
+        category:
+          Array.isArray(item.categories) && item.categories.length
+            ? item.categories
+                .map((category) => category?.name)
+                .filter(Boolean)
+                .join(", ")
+            : "Event Lainnya",
+        categories: Array.isArray(item.categories)
+          ? item.categories.map((category) => ({
+              id: category.id,
+              name: category.name,
+              description: category.description,
+              quota: category.quota,
+              participantCount: category._count?.peserta ?? category.participantCount ?? 0,
+            }))
+          : [],
         isFeatured: Boolean(item.isFeatured),
         photoPath: item.photoPath || item.cover || null,
         kuota: item.kuota ?? null,
@@ -96,6 +111,9 @@ export default async function EventsPage() {
               {events.map((event) => {
                 const status = statusMap[event.status] ?? statusMap["upcoming"];
                 const cta = getCta(event);
+                const categories = Array.isArray(event.categories) ? event.categories : [];
+                const primaryCategory = categories[0]?.name || event.category;
+                const isOpen = normalizeStatus(event.status) === "open";
                 return (
                   <article
                     key={event.id}
@@ -112,8 +130,13 @@ export default async function EventsPage() {
                         <div className="flex flex-wrap items-center justify-between gap-3">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                              {event.category}
+                              {primaryCategory}
                             </span>
+                            {categories.length > 1 && (
+                              <span className="rounded-full bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                                +{categories.length - 1} kategori
+                              </span>
+                            )}
                             {event.isFeatured && (
                               <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
                                 <Star className="h-3.5 w-3.5 text-yellow-500" />
@@ -135,6 +158,30 @@ export default async function EventsPage() {
                           )}
                         </div>
                       </div>
+
+                      {categories.length > 0 && (
+                        <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+                          <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-foreground/70">
+                            Kuota per kategori
+                          </div>
+                          <div className="space-y-1">
+                            {categories.map((category) => {
+                              const quotaValue = category?.quota ?? "-";
+                              return (
+                                <div
+                                  key={category?.id || category?.name}
+                                  className="flex items-center justify-between gap-2"
+                                >
+                                  <span className="font-medium text-foreground/80">
+                                    {category?.name || "Kategori"}
+                                  </span>
+                                  <span>Kuota {quotaValue}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       <div className="space-y-2 text-sm text-muted-foreground">
                         <div className="flex items-center gap-2">
@@ -158,10 +205,7 @@ export default async function EventsPage() {
                         </div>
                         <div className="flex items-center gap-2">
                           <Ticket className="h-4 w-4 text-primary" />
-                          <span>
-                            {event.biaya == null ? "Gratis" : formatCurrency(event.biaya)}
-                            {event.kuota ? ` • Kuota ${event.kuota} tim` : ""}
-                          </span>
+                          <span>{event.biaya == null ? "Gratis" : formatCurrency(event.biaya)}</span>
                         </div>
                       </div>
 

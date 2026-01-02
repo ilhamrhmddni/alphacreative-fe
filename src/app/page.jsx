@@ -2,7 +2,10 @@
 import { HeroSection } from "@/components/landing/HeroSection";
 import { EventsSection } from "@/components/landing/EventsSection";
 import { CategoriesSection } from "@/components/landing/CategoriesSection";
-import { PreviewSection } from "@/components/landing/PreviewSection";
+import { GallerySection } from "@/components/landing/GallerySection";
+import { NewsSection } from "@/components/landing/NewsSection";
+import { MerchandiseSection } from "@/components/landing/MerchandiseSection";
+import { PartnershipSection } from "@/components/landing/PartnershipSection";
 import { CTASection } from "@/components/landing/CTASection";
 import { Footer } from "@/components/landing/Footer";
 import { Navbar } from "@/components/landing/Navbar";
@@ -17,14 +20,21 @@ export default async function Home() {
     events: [],
     categories: [],
     news: [],
+    merchandise: [],
+    merchandiseContact: null,
     champions: [],
+    gallery: [],
+    collaborations: [],
     stats: null,
   };
 
   try {
-    const res = await fetch(`${API_URL}/public/landing`, { next: { revalidate: 60 } });
+    const res = await fetch(`${API_URL}/public/landing`, {
+      cache: "no-store",
+    });
     if (res.ok) {
-      data = await res.json();
+      const payload = await res.json();
+      data = { ...data, ...payload };
     } else {
       console.error(`Fetch /public/landing failed: ${res.status} ${res.statusText}`);
     }
@@ -39,7 +49,13 @@ export default async function Home() {
         <HeroSection heroEvent={data.heroEvent} stats={data.stats} />
         <EventsSection events={data.events} />
         <CategoriesSection categories={data.categories} />
-        <PreviewSection news={data.news} champions={data.champions} />
+        <GallerySection items={data.gallery} />
+        <NewsSection news={data.news} />
+        <MerchandiseSection
+          merchandise={data.merchandise}
+          merchandiseContact={data.merchandiseContact}
+        />
+        <PartnershipSection collaborations={data.collaborations} />
         <CTASection />
       </main>
       <Footer />
