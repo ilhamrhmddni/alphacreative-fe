@@ -797,6 +797,12 @@ function ParticipantTeamCard({
         {/* Details row - compact */}
         <div className="text-xs text-muted-foreground space-y-1">
           <p>📧 {team.user?.email || "-"}</p>
+          <p>
+            🗂️ Kategori: {team.eventCategory?.name || "Tanpa kategori"}
+            {gelar && ` • 🏆 ${gelar}`}
+          </p>
+        </div>
+
         <div className="flex items-center gap-2 pt-3">
           {canManageDetails && (
             <Button
