@@ -175,6 +175,12 @@ function StatCard({ label, value, icon: Icon, color = "primary" }) {
 function EventListItem({ event, registration, onRegister, onCancel, onViewDetail }) {
   const isRegistered = !!registration;
   const memberCount = registration?.detailPeserta?.length || 0;
+  
+  // Count members with complete profile (namaLengkap filled)
+  const completedMembers = registration?.detailPeserta?.filter(
+    (d) => d.namaLengkap && d.namaLengkap.trim().length > 0
+  )?.length || 0;
+  
   const photoUrl = event.photoPath ? resolveMediaUrl(event.photoPath) : null;
   const hasPrize = event.hadiah && parseFloat(event.hadiah) > 0;
 
@@ -308,28 +314,36 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
 
         {/* Registration details */}
         {isRegistered && (
-          <div className="bg-muted/50 rounded-lg p-3 space-y-2 border border-border/50">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Tim Anda</p>
-                <p className="font-semibold text-sm text-foreground">{registration.namaTim}</p>
-                {registration.eventCategory && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    <Tag className="h-3 w-3 inline mr-1" />
-                    {registration.eventCategory.name}
-                  </p>
-                )}
-              </div>
+          <div className="bg-muted/50 rounded-lg p-3 space-y-3 border border-border/50">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1.5">Tim Anda</p>
+              <p className="font-semibold text-sm text-foreground break-words">
+                {registration.namaTim || "-"}
+              </p>
+              {registration.eventCategory && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  <Tag className="h-3 w-3 inline mr-1" />
+                  {registration.eventCategory.name}
+                </p>
+              )}
             </div>
 
-            {/* Member progress */}
+            {/* Member progress - only show if there are members */}
             {memberCount > 0 && (
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Progress Anggota</p>
+              <div className="space-y-2 pt-1 border-t border-border/50">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground font-medium">Progress Anggota</p>
+                  <span className="text-xs font-bold text-primary">{completedMembers}/{memberCount}</span>
+                </div>
                 <ProgressBar
-                  current={registration.detailPeserta?.filter(d => d.namaLengkap)?.length || 0}
+                  current={completedMembers}
                   total={memberCount}
                 />
+                {completedMembers < memberCount && (
+                  <p className="text-xs text-amber-600 bg-amber-50 rounded px-2 py-1">
+                    {memberCount - completedMembers} anggota belum mengisi profil lengkap
+                  </p>
+                )}
               </div>
             )}
           </div>
