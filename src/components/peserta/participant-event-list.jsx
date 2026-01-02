@@ -151,27 +151,6 @@ function ProgressBar({ current, total, className = "" }) {
   );
 }
 
-function StatCard({ label, value, icon: Icon, color = "primary" }) {
-  const colorClasses = {
-    primary: "bg-primary/10 text-primary border-primary/20",
-    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    amber: "bg-amber-50 text-amber-700 border-amber-200",
-    slate: "bg-slate-50 text-slate-700 border-slate-200",
-  };
-
-  return (
-    <div className={`rounded-lg border p-3 ${colorClasses[color]}`}>
-      <div className="flex items-center gap-2">
-        {Icon && <Icon className="h-4 w-4 flex-shrink-0" />}
-        <div>
-          <p className="text-xs opacity-75">{label}</p>
-          <p className="text-lg font-bold">{value}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function EventListItem({ event, registration, onRegister, onCancel, onViewDetail }) {
   const isRegistered = !!registration;
   const memberCount = registration?.detailPeserta?.length || 0;
@@ -395,92 +374,33 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
 }
 
 export function ParticipantEventList({ events, registrations, onRegister, onCancel }) {
-  const [filter, setFilter] = useState("all"); // all, registered, available
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
 
-  const filteredEvents = events.filter((event) => {
-    const registration = registrations.find((r) => r.eventId === event.id);
-    if (filter === "registered") return !!registration;
-    if (filter === "available") return !registration;
-    return true;
-  });
+  const now = new Date();
 
-  const registeredCount = registrations.length;
-  const availableCount = events.length - registeredCount;
-  const pendingCount = registrations.filter((r) => r.status === "pending").length;
-  const approvedCount = registrations.filter((r) => r.status === "approved").length;
+  // Separate upcoming and finished events
+  const upcomingEvents = events
+    .filter((event) => event.tanggalMulai && new Date(event.tanggalMulai) > now)
+    .sort((a, b) => new Date(a.tanggalMulai) - new Date(b.tanggalMulai));
+
+  const finishedEvents = events
+    .filter((event) => !event.tanggalMulai || new Date(event.tanggalMulai) <= now)
+    .sort((a, b) => new Date(b.tanggalMulai || 0) - new Date(a.tanggalMulai || 0));
 
   const handleViewDetail = (event) => {
     setSelectedEvent(event);
     setDetailDialogOpen(true);
   };
 
-  return (
-    <div className="space-y-6">
-      {/* Stats Overview */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Total Event" value={events.length} icon={Calendar} color="slate" />
-        <StatCard label="Terdaftar" value={registeredCount} icon={CheckCircle2} color="emerald" />
-        <StatCard label="Menunggu Konfirmasi" value={pendingCount} icon={Clock} color="amber" />
-        <StatCard label="Dikonfirmasi" value={approvedCount} icon={Trophy} color="primary" />
-      </div>
+  const renderEventSection = (title, eventList) => {
+    if (eventList.length === 0) return null;
 
-      {/* Filter Tabs */}
-      <div className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-muted p-1">
-        <button
-          onClick={() => setFilter("all")}
-          className={`flex-1 whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
-            filter === "all"
-              ? "bg-card text-primary shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <span className="flex items-center justify-center gap-2">
-            Semua Event
-            <Badge variant="outline" className={filter === "all" ? "border-primary/20 bg-primary/10 text-primary" : ""}>
-              {events.length}
-            </Badge>
-          </span>
-        </button>
-        <button
-          onClick={() => setFilter("registered")}
-          className={`flex-1 whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
-            filter === "registered"
-              ? "bg-card text-primary shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <span className="flex items-center justify-center gap-2">
-            <CheckCircle2 className="h-4 w-4" />
-            Terdaftar
-            <Badge variant="outline" className={filter === "registered" ? "border-emerald-200 bg-emerald-50 text-emerald-700" : ""}>
-              {registeredCount}
-            </Badge>
-          </span>
-        </button>
-        <button
-          onClick={() => setFilter("available")}
-          className={`flex-1 whitespace-nowrap rounded-md px-4 py-2.5 text-sm font-semibold transition-all ${
-            filter === "available"
-              ? "bg-card text-primary shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <span className="flex items-center justify-center gap-2">
-            <Trophy className="h-4 w-4" />
-            Tersedia
-            <Badge variant="outline" className={filter === "available" ? "border-primary/20 bg-primary/10 text-primary" : ""}>
-              {availableCount}
-            </Badge>
-          </span>
-        </button>
-      </div>
-
-      {/* Event List */}
-      {filteredEvents.length > 0 ? (
+    return (
+      <div className="space-y-3">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredEvents.map((event) => {
+          {eventList.map((event) => {
             const registration = registrations.find((r) => r.eventId === event.id);
             return (
               <EventListItem
@@ -494,30 +414,29 @@ export function ParticipantEventList({ events, registrations, onRegister, onCanc
             );
           })}
         </div>
-      ) : (
+      </div>
+    );
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Upcoming Events Section */}
+      {renderEventSection("Event Mendatang", upcomingEvents)}
+
+      {/* Finished Events Section */}
+      {renderEventSection("Event Selesai", finishedEvents)}
+
+      {/* Empty State */}
+      {events.length === 0 && (
         <div className="rounded-xl border-2 border-dashed border-border bg-muted p-12 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-            {filter === "registered" ? (
-              <CheckCircle2 className="h-8 w-8 text-muted-foreground" />
-            ) : filter === "available" ? (
-              <Trophy className="h-8 w-8 text-muted-foreground" />
-            ) : (
-              <Calendar className="h-8 w-8 text-muted-foreground" />
-            )}
+            <Calendar className="h-8 w-8 text-muted-foreground" />
           </div>
           <p className="text-base font-semibold text-foreground mb-1">
-            {filter === "registered"
-              ? "Belum Ada Pendaftaran"
-              : filter === "available"
-              ? "Semua Event Sudah Diikuti"
-              : "Belum Ada Event"}
+            Belum Ada Event
           </p>
           <p className="text-sm text-muted-foreground">
-            {filter === "registered"
-              ? "Anda belum mendaftar di event manapun. Pilih event yang tersedia dan daftar sekarang!"
-              : filter === "available"
-              ? "Selamat! Anda sudah terdaftar di semua event yang tersedia."
-              : "Belum ada event yang dibuka. Tunggu pengumuman dari panitia."}
+            Belum ada event yang dibuka. Tunggu pengumuman dari panitia.
           </p>
         </div>
       )}
