@@ -266,28 +266,37 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
         {/* Stats grid */}
         <div className="grid grid-cols-3 gap-2">
           {isRegistered && (
-            <StatCard
-              label="Anggota"
-              value={memberCount}
-              icon={Users}
-              color="primary"
-            />
+            <div className="rounded-lg border p-3 bg-primary/10 text-primary border-primary/20">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 flex-shrink-0" />
+                <div>
+                  <p className="text-xs opacity-75">Anggota</p>
+                  <p className="text-lg font-bold">{memberCount}</p>
+                </div>
+              </div>
+            </div>
           )}
           {event.pesertaCount > 0 && (
-            <StatCard
-              label="Peserta"
-              value={event.pesertaCount}
-              icon={Users}
-              color="slate"
-            />
+            <div className="rounded-lg border p-3 bg-slate-50 text-slate-700 border-slate-200">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 flex-shrink-0" />
+                <div>
+                  <p className="text-xs opacity-75">Peserta</p>
+                  <p className="text-lg font-bold">{event.pesertaCount}</p>
+                </div>
+              </div>
+            </div>
           )}
           {hasPrize && (
-            <StatCard
-              label="Hadiah"
-              value={formatCurrency(event.hadiah)}
-              icon={Trophy}
-              color="amber"
-            />
+            <div className="rounded-lg border p-3 bg-amber-50 text-amber-700 border-amber-200">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 flex-shrink-0" />
+                <div>
+                  <p className="text-xs opacity-75">Hadiah</p>
+                  <p className="text-lg font-bold">{formatCurrency(event.hadiah)}</p>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
