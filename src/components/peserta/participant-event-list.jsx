@@ -136,10 +136,47 @@ function EventDetailDialog({ event, open, onOpenChange }) {
   );
 }
 
+function ProgressBar({ current, total, className = "" }) {
+  const percentage = total > 0 ? (current / total) * 100 : 0;
+  return (
+    <div className={`flex items-center gap-2 ${className}`}>
+      <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-full bg-gradient-to-r from-primary to-primary/60 transition-all"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <span className="text-xs font-semibold text-muted-foreground min-w-fit">{current}/{total}</span>
+    </div>
+  );
+}
+
+function StatCard({ label, value, icon: Icon, color = "primary" }) {
+  const colorClasses = {
+    primary: "bg-primary/10 text-primary border-primary/20",
+    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    amber: "bg-amber-50 text-amber-700 border-amber-200",
+    slate: "bg-slate-50 text-slate-700 border-slate-200",
+  };
+
+  return (
+    <div className={`rounded-lg border p-3 ${colorClasses[color]}`}>
+      <div className="flex items-center gap-2">
+        {Icon && <Icon className="h-4 w-4 flex-shrink-0" />}
+        <div>
+          <p className="text-xs opacity-75">{label}</p>
+          <p className="text-lg font-bold">{value}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function EventListItem({ event, registration, onRegister, onCancel, onViewDetail }) {
   const isRegistered = !!registration;
   const memberCount = registration?.detailPeserta?.length || 0;
   const photoUrl = event.photoPath ? resolveMediaUrl(event.photoPath) : null;
+  const hasPrize = event.hadiah && parseFloat(event.hadiah) > 0;
 
   const getStatusConfig = () => {
     if (!isRegistered) {
@@ -178,12 +215,13 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
   const statusConfig = getStatusConfig();
 
   return (
-    <div className="group rounded-lg border border-border bg-card p-4 transition-all hover:border-primary/40 hover:shadow-md">
-      <div className="flex gap-4">
-        {/* Thumbnail */}
+    <div className="group rounded-xl border border-border bg-card transition-all hover:border-primary/40 hover:shadow-lg overflow-hidden">
+      {/* Header dengan foto dan status */}
+      <div className="relative">
+        {/* Photo */}
         <button
           onClick={onViewDetail}
-          className="relative h-20 w-20 flex-shrink-0 overflow-hidden rounded-lg bg-muted transition-transform hover:scale-105"
+          className="relative h-32 w-full bg-muted overflow-hidden transition-transform group-hover:scale-105 block"
         >
           {photoUrl ? (
             <Image
@@ -191,100 +229,151 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
               alt={event.namaEvent}
               fill
               className="object-cover"
-              sizes="80px"
+              sizes="(max-width: 768px) 100vw, 400px"
               unoptimized
             />
           ) : (
-            <div className="flex h-full items-center justify-center">
-              <Trophy className="h-8 w-8 text-muted-foreground/40" />
+            <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5">
+              <Trophy className="h-12 w-12 text-primary/30" />
             </div>
           )}
+          {/* Overlay gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
         </button>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <button
-              onClick={onViewDetail}
-              className="flex-1 text-left min-w-0"
-            >
-              <h3 className="font-bold text-foreground line-clamp-1 group-hover:text-primary transition-colors">
-                {event.namaEvent}
-              </h3>
-              <div className="flex flex-wrap items-center gap-2 mt-1 text-xs text-muted-foreground">
-                {event.tanggalMulai && (
-                  <span className="flex items-center gap-1">
-                    <Calendar className="h-3 w-3" />
-                    {formatDate(event.tanggalMulai)}
-                  </span>
-                )}
-                {event.lokasi && (
-                  <>
-                    <span>•</span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {event.lokasi}
-                    </span>
-                  </>
-                )}
-              </div>
-            </button>
-
-            {/* Status Badge */}
-            <div className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold ${statusConfig.className}`}>
-              {statusConfig.icon}
-              {statusConfig.text}
-            </div>
+        {/* Status badge positioned over image */}
+        <div className="absolute top-3 right-3 z-10">
+          <div className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold backdrop-blur-sm bg-card/90 ${statusConfig.className}`}>
+            {statusConfig.icon}
+            {statusConfig.text}
           </div>
+        </div>
+      </div>
 
-          {/* Registration Info */}
-          {isRegistered && (
-            <div className="mb-2 text-xs text-muted-foreground">
-              <span className="font-semibold text-foreground">{registration.namaTim}</span>
-              {" • "}
-              <span>{memberCount} anggota</span>
-              {registration.eventCategory && (
-                <>
-                  {" • "}
-                  <span>{registration.eventCategory.name}</span>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={onViewDetail}
-              variant="outline"
-              size="sm"
-              className="h-8 text-xs"
-            >
-              <Info className="mr-1 h-3 w-3" />
-              Detail
-            </Button>
-            
-            {isRegistered ? (
-              <Button
-                onClick={() => onCancel(registration)}
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
-              >
-                <X className="mr-1 h-3 w-3" />
-                Batalkan
-              </Button>
-            ) : (
-              <Button
-                onClick={() => onRegister(event)}
-                size="sm"
-                className="h-8 text-xs"
-              >
-                <CheckCircle2 className="mr-1 h-3 w-3" />
-                Daftar
-              </Button>
+      {/* Content */}
+      <div className="p-4 space-y-4">
+        {/* Title and date/location */}
+        <div>
+          <button
+            onClick={onViewDetail}
+            className="text-left w-full"
+          >
+            <h3 className="font-bold text-lg text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+              {event.namaEvent}
+            </h3>
+          </button>
+          <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
+            {event.tanggalMulai && (
+              <span className="flex items-center gap-1 bg-muted px-2.5 py-1 rounded-md">
+                <Calendar className="h-3.5 w-3.5" />
+                {formatDate(event.tanggalMulai)}
+              </span>
+            )}
+            {event.lokasi && (
+              <span className="flex items-center gap-1 bg-muted px-2.5 py-1 rounded-md">
+                <MapPin className="h-3.5 w-3.5" />
+                {event.lokasi}
+              </span>
             )}
           </div>
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-3 gap-2">
+          {isRegistered && (
+            <StatCard
+              label="Anggota"
+              value={memberCount}
+              icon={Users}
+              color="primary"
+            />
+          )}
+          {event.pesertaCount > 0 && (
+            <StatCard
+              label="Peserta"
+              value={event.pesertaCount}
+              icon={Users}
+              color="slate"
+            />
+          )}
+          {hasPrize && (
+            <StatCard
+              label="Hadiah"
+              value={formatCurrency(event.hadiah)}
+              icon={Trophy}
+              color="amber"
+            />
+          )}
+        </div>
+
+        {/* Registration details */}
+        {isRegistered && (
+          <div className="bg-muted/50 rounded-lg p-3 space-y-2 border border-border/50">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Tim Anda</p>
+                <p className="font-semibold text-sm text-foreground">{registration.namaTim}</p>
+                {registration.eventCategory && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    <Tag className="h-3 w-3 inline mr-1" />
+                    {registration.eventCategory.name}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Member progress */}
+            {memberCount > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Progress Anggota</p>
+                <ProgressBar
+                  current={registration.detailPeserta?.filter(d => d.namaLengkap)?.length || 0}
+                  total={memberCount}
+                />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Description preview */}
+        {event.deskripsi && (
+          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+            {event.deskripsi}
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-2 pt-2 border-t border-border/50">
+          <Button
+            onClick={onViewDetail}
+            variant="outline"
+            size="sm"
+            className="flex-1 h-9 text-xs"
+          >
+            <Info className="mr-1.5 h-3.5 w-3.5" />
+            Detail Lengkap
+          </Button>
+          
+          {isRegistered ? (
+            <Button
+              onClick={() => onCancel(registration)}
+              variant="outline"
+              size="sm"
+              className="flex-1 h-9 text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 border-rose-200"
+            >
+              <X className="mr-1.5 h-3.5 w-3.5" />
+              Batalkan
+            </Button>
+          ) : (
+            <Button
+              onClick={() => onRegister(event)}
+              size="sm"
+              className="flex-1 h-9 text-xs"
+            >
+              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+              Daftar Sekarang
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -315,6 +404,14 @@ export function ParticipantEventList({ events, registrations, onRegister, onCanc
 
   return (
     <div className="space-y-6">
+      {/* Stats Overview */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard label="Total Event" value={events.length} icon={Calendar} color="slate" />
+        <StatCard label="Terdaftar" value={registeredCount} icon={CheckCircle2} color="emerald" />
+        <StatCard label="Menunggu Konfirmasi" value={pendingCount} icon={Clock} color="amber" />
+        <StatCard label="Dikonfirmasi" value={approvedCount} icon={Trophy} color="primary" />
+      </div>
+
       {/* Filter Tabs */}
       <div className="flex gap-1 overflow-x-auto rounded-lg border border-border bg-muted p-1">
         <button
@@ -368,7 +465,7 @@ export function ParticipantEventList({ events, registrations, onRegister, onCanc
 
       {/* Event List */}
       {filteredEvents.length > 0 ? (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredEvents.map((event) => {
             const registration = registrations.find((r) => r.eventId === event.id);
             return (
