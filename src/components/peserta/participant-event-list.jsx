@@ -387,7 +387,7 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
               <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
               Daftar Sekarang
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
