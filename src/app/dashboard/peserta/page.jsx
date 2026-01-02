@@ -470,15 +470,52 @@ export default function PesertaPage() {
             {error && <p className="text-[11px] text-red-500">{error}</p>}
 
             {isParticipant ? (
-              <ParticipantTeamPanel
-                teams={participantTeams}
-                loading={loading}
-                onAddDetail={handleAddDetail}
-                onEditDetail={handleEditDetail}
-                onDeleteDetail={handleDeleteDetail}
-                canManageDetails
-                onUpdateLinkDrive={handleUpdateLinkDrive}
-              />
+              <>
+                {/* Event selector for participants */}
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-foreground mb-2">
+                    Pilih Event
+                  </label>
+                  <Select 
+                    value={eventFilter === "all" ? "" : eventFilter} 
+                    onValueChange={(val) => setEventFilter(val || "all")}
+                  >
+                    <SelectTrigger className="h-10 rounded-md border-border">
+                      <SelectValue placeholder="Pilih event untuk melihat detail" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                      {events.length > 0 ? (
+                        events.map((event) => (
+                          <SelectItem key={event.id} value={String(event.id)}>
+                            {event.namaEvent}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                          Tidak ada event tersedia
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Participant teams for selected event */}
+                {eventFilter !== "all" ? (
+                  <ParticipantTeamPanel
+                    teams={participantTeams}
+                    loading={loading}
+                    onAddDetail={handleAddDetail}
+                    onEditDetail={handleEditDetail}
+                    onDeleteDetail={handleDeleteDetail}
+                    canManageDetails
+                    onUpdateLinkDrive={handleUpdateLinkDrive}
+                  />
+                ) : (
+                  <div className="rounded-lg border border-dashed border-border bg-muted px-4 py-6 text-center text-sm text-muted-foreground">
+                    Pilih event di atas untuk melihat detail tim Anda
+                  </div>
+                )}
+              </>
             ) : (
               <>
                 <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -737,79 +774,30 @@ function ParticipantTeamCard({
   }
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm">
-      <div className="border-b border-border bg-gradient-to-br from-white to-slate-50 px-5 py-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">
-              Nama Tim
-            </p>
-            <p className="text-xl font-semibold text-foreground">
+    <div className="rounded-lg border border-border bg-card">
+      <div className="flex flex-col gap-4 p-4">
+        {/* Header row */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-lg font-semibold text-foreground truncate">
               {team.namaTim || "-"}
             </p>
             <p className="text-xs text-muted-foreground">
-              Perwakilan: {team.namaPerwakilan || "-"}
+              Perwakilan: {team.namaPerwakilan || "-"} • {team.event?.namaEvent || "-"}
             </p>
           </div>
-          <div className="space-y-1 text-right text-muted-foreground">
+          <div className="flex items-center gap-2">
             {renderParticipantStatus(team.status)}
-            <div className="text-sm">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                Event
-              </p>
-              <p className="font-semibold text-foreground">
-                {team.event?.namaEvent || "-"}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {team.eventCategory?.name
-                  ? `Kategori: ${team.eventCategory.name}`
-                  : "Tanpa kategori khusus"}
-              </p>
-            </div>
+            <span className="text-xs text-muted-foreground">
+              {detailList.length} anggota
+            </span>
           </div>
         </div>
-        <dl className="mt-4 grid gap-3 text-sm text-muted-foreground sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-              Akun Peserta
-            </dt>
-            <dd className="text-foreground">{team.user?.email || "-"}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-              Tanggal Daftar
-            </dt>
-            <dd className="text-foreground">{formatDate(registrationDate)}</dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-              Gelar / Juara
-            </dt>
-            <dd className="text-foreground">
-              {gelar || "Belum memperoleh gelar"}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs uppercase tracking-wide text-muted-foreground">
-              Kuota anggota
-            </dt>
-            <dd className="text-foreground">
-              {detailList.length} anggota terdaftar
-            </dd>
-          </div>
-        </dl>
-      </div>
 
-      <div className="px-5 py-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-base font-semibold text-foreground">
-              Detail Anggota
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Lengkapi profil anggota untuk mempermudah verifikasi data.
-            </p>
-          </div>
+        {/* Details row - compact */}
+        <div className="text-xs text-muted-foreground space-y-1">
+          <p>📧 {team.user?.email || "-"}</p>
+        <div className="flex items-center gap-2 pt-3">
           {canManageDetails && (
             <Button
               size="sm"
@@ -821,67 +809,49 @@ function ParticipantTeamCard({
           )}
         </div>
 
+        {/* Detail anggota - 1 row layout */}
         {detailList.length ? (
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className="mt-4 space-y-2 border-t border-border pt-3">
             {detailList.map((detail, idx) => (
-              <article
+              <div
                 key={detail.id ?? idx}
-                className="rounded-lg border border-border bg-muted px-4 py-3 text-sm text-muted-foreground"
+                className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-md border border-border/50 bg-muted/30 px-3 py-2 text-xs"
               >
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span className="font-semibold uppercase tracking-wide text-muted-foreground">
-                    Anggota #{idx + 1}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    {detail.umur != null && (
-                      <span className="text-foreground">{detail.umur} tahun</span>
-                    )}
-                    {canManageDetails && (
-                      <>
-                        <button
-                          type="button"
-                          className="rounded-full border border-border p-1 text-muted-foreground hover:bg-card"
-                          onClick={() => onEditDetail?.(team, detail)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          className="rounded-full border border-border p-1 text-rose-600 hover:bg-card"
-                          onClick={() => onDeleteDetail?.(detail)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-foreground truncate">
+                    {detail.namaDetail || "Tanpa nama"}
+                  </p>
+                  <p className="text-muted-foreground">
+                    {detail.umur != null ? `${detail.umur} tahun` : "Usia tidak diisi"}
+                    {detail.tanggalLahir && ` • ${formatDate(detail.tanggalLahir)}`}
+                  </p>
                 </div>
-                <p className="mt-2 text-base font-semibold text-foreground">
-                  {detail.namaDetail || "Belum diisi"}
-                </p>
-                <dl className="mt-2 grid grid-cols-2 gap-2 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  <div>
-                    <dt>Tanggal lahir</dt>
-                    <dd className="text-sm normal-case text-foreground">
-                      {formatDate(detail.tanggalLahir)}
-                    </dd>
+                {canManageDetails && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground hover:bg-card hover:text-foreground"
+                      onClick={() => onEditDetail?.(team, detail)}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-rose-600 hover:bg-rose-50"
+                      onClick={() => onDeleteDetail?.(detail)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
                   </div>
-                  <div>
-                    <dt>Catatan usia</dt>
-                    <dd className="text-sm normal-case text-foreground">
-                      {detail.umur != null ? `${detail.umur} tahun` : "-"}
-                    </dd>
-                  </div>
-                </dl>
-              </article>
+                )}
+              </div>
             ))}
           </div>
         ) : (
-          <div className="mt-4 rounded-lg border border-dashed border-border bg-muted px-4 py-3 text-sm text-muted-foreground">
-            Belum ada detail anggota yang tercatat. Gunakan tombol &quot;Tambah
-            Anggota&quot; untuk melengkapi data tim.
+          <div className="mt-4 rounded-md border border-dashed border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            Belum ada anggota. Klik "Tambah Anggota" untuk menambah.
           </div>
-        )}
+        )}}
       </div>
 
       <div className="border-t border-border px-5 py-5">
