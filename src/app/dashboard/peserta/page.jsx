@@ -851,7 +851,7 @@ function ParticipantTeamCard({
           <div className="mt-4 rounded-md border border-dashed border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             Belum ada anggota. Klik "Tambah Anggota" untuk menambah.
           </div>
-        )}}
+        )}
       </div>
 
       <div className="border-t border-border px-5 py-5">
