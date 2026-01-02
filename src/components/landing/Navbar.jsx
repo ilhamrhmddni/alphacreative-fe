@@ -19,11 +19,11 @@ export function Navbar() {
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
       <nav className="container mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
-        <Link href="/" className="flex items-center gap-2" aria-label="Alpha Creative Nusantara">
+        <Link href="/" className="flex items-center gap-2" aria-label="Alpha Creative">
           <div className="relative h-9 w-48 shrink-0 md:h-10 md:w-60">
             <Image
-              src="/alpha-creative-nusantara.svg"
-              alt="Alpha Creative Nusantara"
+              src="/logo.svg"
+              alt="Alpha Creative"
               fill
               sizes="(min-width: 768px) 240px, 180px"
               priority

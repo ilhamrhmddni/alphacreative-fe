@@ -10,8 +10,8 @@ export function Footer() {
             <div className="mb-4 flex items-center">
               <div className="relative h-10 w-56 md:h-12 md:w-64">
                 <Image
-                  src="/alpha-creative-nusantara.svg"
-                  alt="Alpha Creative Nusantara"
+                  src="/logo.svg"
+                  alt="Alpha Creative"
                   fill
                   sizes="(min-width: 768px) 256px, 224px"
                 />

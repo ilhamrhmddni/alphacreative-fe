@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+import Link from "next/link";
 import { useMemo } from "react";
 import { UserCircle2 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
@@ -16,7 +18,18 @@ export function Topbar() {
 
   return (
     <header className="h-14 flex items-center justify-between border-b px-4 bg-background">
-      <div className="font-medium text-sm">Backend Panel</div>
+      <Link href="/dashboard" className="flex items-center gap-2">
+        <div className="relative h-8 w-40 shrink-0">
+          <Image
+            src="/logo.svg"
+            alt="Alpha Creative"
+            fill
+            sizes="160px"
+            priority
+            className="object-contain"
+          />
+        </div>
+      </Link>
       <div className="flex items-center gap-3 text-sm">
         {user && (
           <>
