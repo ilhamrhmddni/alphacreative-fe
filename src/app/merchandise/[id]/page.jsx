@@ -44,7 +44,7 @@ function formatWhatsappDisplay(number) {
 export async function generateStaticParams() {
   try {
     const res = await fetch(`${API_URL}/merchandise`, {
-      next: { revalidate: STATIC_PARAMS_REVALIDATE },
+      next: { revalidate: 300 },
     });
     if (!res.ok) {
       return [];
@@ -75,7 +75,7 @@ export default async function MerchandiseDetail({ params }) {
 
   try {
     const res = await fetch(`${API_URL}/merchandise/${id}`, { 
-      next: { revalidate: DETAIL_REVALIDATE_SECONDS } 
+      next: { revalidate: 60 } 
     });
     if (res.ok) {
       const data = await res.json();
