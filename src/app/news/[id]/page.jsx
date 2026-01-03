@@ -9,36 +9,6 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, Home } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-const envStaticLimit = Number(process.env.NEWS_STATIC_PARAMS_LIMIT);
-const STATIC_PARAMS_LIMIT = Number.isFinite(envStaticLimit) && envStaticLimit > 0 ? envStaticLimit : 50;
-const envStaticRevalidate = Number(process.env.NEWS_STATIC_PARAMS_REVALIDATE);
-const STATIC_PARAMS_REVALIDATE = Number.isFinite(envStaticRevalidate) && envStaticRevalidate >= 60 ? envStaticRevalidate : 300;
-const envDetailRevalidate = Number(process.env.NEWS_DETAIL_REVALIDATE);
-const DETAIL_REVALIDATE_SECONDS = Number.isFinite(envDetailRevalidate) && envDetailRevalidate >= 60 ? envDetailRevalidate : 60;
-
-export async function generateStaticParams() {
-  try {
-    const res = await fetch(`${API_URL}/berita`, {
-      next: { revalidate: STATIC_PARAMS_REVALIDATE },
-    });
-    if (!res.ok) {
-      return [];
-    }
-    const payload = await res.json();
-    const items = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.data)
-      ? payload.data
-      : [];
-    return items
-      .filter((item) => item?.id != null)
-        .slice(0, STATIC_PARAMS_LIMIT)
-      .map((item) => ({ id: String(item.id) }));
-  } catch (err) {
-    console.warn("generateStaticParams berita gagal:", err);
-    return [];
-  }
-}
 
 export default async function NewsDetail({ params }) {
   const routeParams = await params; // params arrives as a Promise in Turbopack builds
