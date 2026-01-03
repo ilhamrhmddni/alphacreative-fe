@@ -10,7 +10,8 @@ const envLimit = Number(process.env.NEWS_PAGE_LIMIT || process.env.NEXT_PUBLIC_N
 const DEFAULT_LIMIT = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 10;
 
 const envRevalidate = Number(process.env.NEWS_PAGE_REVALIDATE);
-const SERVER_REVALIDATE_SECONDS = Number.isFinite(envRevalidate) && envRevalidate >= 60 ? envRevalidate : 180;
+// Revalidate news page every 180 seconds (3 minutes)
+export const revalidate = 180;
 
 const envExcerpt = Number(process.env.NEWS_PAGE_EXCERPT);
 const EXCERPT_LENGTH = Number.isFinite(envExcerpt) && envExcerpt >= 40 ? envExcerpt : 160;
@@ -53,7 +54,7 @@ async function fetchNewsPage(page, limit) {
     if (safeLimit) params.set("limit", String(safeLimit));
 
     const res = await fetch(`${API_URL}/berita?${params.toString()}`, {
-      next: { revalidate: SERVER_REVALIDATE_SECONDS },
+      next: { revalidate: 180 },
     });
 
     if (!res.ok) {
@@ -91,8 +92,6 @@ async function fetchNewsPage(page, limit) {
     return fallback;
   }
 }
-
-export const revalidate = SERVER_REVALIDATE_SECONDS;
 
 export default async function NewsPage() {
   const initialData = await fetchNewsPage(DEFAULT_PAGE, DEFAULT_LIMIT);
