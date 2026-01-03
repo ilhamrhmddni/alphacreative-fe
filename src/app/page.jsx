@@ -1,4 +1,7 @@
 
+"use client";
+
+import { useEffect, useState } from "react";
 import { HeroSection } from "@/components/landing/HeroSection";
 import { EventsSection } from "@/components/landing/EventsSection";
 import { CategoriesSection } from "@/components/landing/CategoriesSection";
@@ -10,37 +13,43 @@ import { CTASection } from "@/components/landing/CTASection";
 import { Footer } from "@/components/landing/Footer";
 import { Navbar } from "@/components/landing/Navbar";
 
-export default async function Home() {
-  // Gunakan variabel lingkungan `NEXT_PUBLIC_API_URL` jika tersedia,
-  // fallback ke http://localhost:4000
+const defaultData = {
+  heroEvent: null,
+  events: [],
+  categories: [],
+  news: [],
+  merchandise: [],
+  merchandiseContact: null,
+  champions: [],
+  gallery: [],
+  collaborations: [],
+  stats: null,
+};
+
+export default function Home() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+  const [data, setData] = useState(defaultData);
+  const [loading, setLoading] = useState(true);
 
-  let data = {
-    heroEvent: null,
-    events: [],
-    categories: [],
-    news: [],
-    merchandise: [],
-    merchandiseContact: null,
-    champions: [],
-    gallery: [],
-    collaborations: [],
-    stats: null,
-  };
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`${API_URL}/public/landing`);
+        if (res.ok) {
+          const payload = await res.json();
+          setData({ ...defaultData, ...payload });
+        } else {
+          console.error(`Fetch /public/landing failed: ${res.status} ${res.statusText}`);
+        }
+      } catch (err) {
+        console.error("Error fetching landing data:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  try {
-    const res = await fetch(`${API_URL}/public/landing`, {
-      cache: "no-store",
-    });
-    if (res.ok) {
-      const payload = await res.json();
-      data = { ...data, ...payload };
-    } else {
-      console.error(`Fetch /public/landing failed: ${res.status} ${res.statusText}`);
-    }
-  } catch (err) {
-    console.error("Error fetching landing data:", err);
-  }
+    fetchData();
+  }, [API_URL]);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

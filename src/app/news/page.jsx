@@ -1,19 +1,18 @@
+"use client";
+
 import Link from "next/link";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { NewsListing } from "./news-listing";
+import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const DEFAULT_PAGE = 1;
 
-const envLimit = Number(process.env.NEWS_PAGE_LIMIT || process.env.NEXT_PUBLIC_NEWS_PAGE_LIMIT);
+const envLimit = Number(process.env.NEXT_PUBLIC_NEWS_PAGE_LIMIT);
 const DEFAULT_LIMIT = Number.isFinite(envLimit) && envLimit > 0 ? envLimit : 10;
 
-const envRevalidate = Number(process.env.NEWS_PAGE_REVALIDATE);
-// Revalidate news page every 180 seconds (3 minutes)
-export const revalidate = 180;
-
-const envExcerpt = Number(process.env.NEWS_PAGE_EXCERPT);
+const envExcerpt = Number(process.env.NEXT_PUBLIC_NEWS_PAGE_EXCERPT);
 const EXCERPT_LENGTH = Number.isFinite(envExcerpt) && envExcerpt >= 40 ? envExcerpt : 160;
 
 function mapNewsItem(item) {
@@ -35,66 +34,62 @@ function mapNewsItem(item) {
   };
 }
 
-async function fetchNewsPage(page, limit) {
-  const safePage = Math.max(1, Number(page) || DEFAULT_PAGE);
-  const safeLimit = Math.max(1, Number(limit) || DEFAULT_LIMIT);
-  const fallback = {
+export default function NewsPage() {
+  const [initialData, setInitialData] = useState({
     news: [],
     meta: {
       total: 0,
-      page: safePage,
-      limit: safeLimit,
+      page: DEFAULT_PAGE,
+      limit: DEFAULT_LIMIT,
       totalPages: 1,
     },
-  };
+  });
+  const [loading, setLoading] = useState(true);
 
-  try {
-    const params = new URLSearchParams();
-    params.set("page", String(safePage));
-    if (safeLimit) params.set("limit", String(safeLimit));
+  useEffect(() => {
+    const fetchNews = async () => {
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(DEFAULT_PAGE));
+        params.set("limit", String(DEFAULT_LIMIT));
 
-    const res = await fetch(`${API_URL}/berita?${params.toString()}`, {
-      next: { revalidate: 180 },
-    });
+        const res = await fetch(`${API_URL}/berita?${params.toString()}`);
+        if (!res.ok) throw new Error("Failed to fetch");
 
-    if (!res.ok) {
-      return fallback;
-    }
-
-    const raw = await res.json();
-
-    if (Array.isArray(raw)) {
-      return {
-        news: raw.map(mapNewsItem),
-        meta: {
-          total: raw.length,
-          page: safePage,
-          limit: safeLimit,
-          totalPages: raw.length > 0 ? Math.ceil(raw.length / safeLimit) : 1,
-        },
-      };
-    }
-
-    const rawData = raw?.data || [];
-    const rawMeta = raw?.meta || {};
-
-    return {
-      news: rawData.map(mapNewsItem),
-      meta: {
-        total: rawMeta.total ?? rawData.length ?? 0,
-        page: rawMeta.page ?? safePage,
-        limit: rawMeta.limit ?? safeLimit,
-        totalPages: rawMeta.totalPages ?? 1,
-      },
+        const raw = await res.json();
+        
+        if (Array.isArray(raw)) {
+          setInitialData({
+            news: raw.map(mapNewsItem),
+            meta: {
+              total: raw.length,
+              page: DEFAULT_PAGE,
+              limit: DEFAULT_LIMIT,
+              totalPages: raw.length > 0 ? Math.ceil(raw.length / DEFAULT_LIMIT) : 1,
+            },
+          });
+        } else {
+          const rawData = raw?.data || [];
+          const rawMeta = raw?.meta || {};
+          setInitialData({
+            news: rawData.map(mapNewsItem),
+            meta: {
+              total: rawMeta.total ?? rawData.length ?? 0,
+              page: rawMeta.page ?? DEFAULT_PAGE,
+              limit: rawMeta.limit ?? DEFAULT_LIMIT,
+              totalPages: rawMeta.totalPages ?? 1,
+            },
+          });
+        }
+      } catch (err) {
+        console.error("Error fetching berita:", err);
+      } finally {
+        setLoading(false);
+      }
     };
-  } catch (err) {
-    console.error("Error fetching berita:", err);
-    return fallback;
-  }
-}
 
-export default async function NewsPage() {
-  const initialData = await fetchNewsPage(DEFAULT_PAGE, DEFAULT_LIMIT);
+    fetchNews();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

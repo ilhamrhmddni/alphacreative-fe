@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowLeft, ImageIcon } from "lucide-react";
@@ -6,11 +9,6 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 import { resolveMediaUrl } from "@/lib/utils";
-
-export const metadata = {
-  title: "Galeri Foto | Alpha Creative Nusantara",
-  description: "Koleksi dokumentasi kegiatan Alpha Creative Nusantara yang dapat dinikmati publik.",
-};
 
 function getApiBaseUrl() {
   const raw =
@@ -21,82 +19,77 @@ function getApiBaseUrl() {
   return raw.replace(/\/$/, "");
 }
 
-async function fetchLandingGallery(baseUrl) {
-  try {
-    const response = await fetch(`${baseUrl}/public/landing`, {
-      next: { revalidate: 120 },
-    });
+export default function GalleryPage() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-    if (!response.ok) {
-      console.error(`Fallback fetch /public/landing failed: ${response.status} ${response.statusText}`);
-      return [];
-    }
+  useEffect(() => {
+    const fetchGallery = async () => {
+      const API_BASE_URL = getApiBaseUrl();
+      const formatter = new Intl.DateTimeFormat("id-ID", { dateStyle: "long" });
 
-    const payload = await response.json();
-    if (payload && Array.isArray(payload.gallery)) {
-      return payload.gallery;
-    }
-  } catch (error) {
-    console.error("Error fetching fallback landing data:", error);
-  }
-  return [];
-}
-
-async function fetchGalleryItems() {
-  const API_BASE_URL = getApiBaseUrl();
-
-  try {
-    const response = await fetch(`${API_BASE_URL}/public/gallery`, {
-      next: { revalidate: 120 },
-    });
-
-    if (response.status === 404) {
-      console.warn("/public/gallery not available, falling back to landing data");
-      return fetchLandingGallery(API_BASE_URL);
-    }
-
-    if (!response.ok) {
-      console.error(`Fetch /public/gallery failed: ${response.status} ${response.statusText}`);
-      return [];
-    }
-
-    const payload = await response.json();
-    return Array.isArray(payload?.data) ? payload.data : [];
-  } catch (error) {
-    console.error("Error fetching gallery data:", error);
-    return [];
-  }
-}
-
-export default async function GalleryPage() {
-  const rawItems = await fetchGalleryItems();
-  const formatter = new Intl.DateTimeFormat("id-ID", { dateStyle: "long" });
-
-  const items = rawItems
-    .map((item, index) => {
-      const photoUrl = resolveMediaUrl(item.photoPath) || item.photoPath || "";
-      if (!photoUrl) {
-        return null;
-      }
-
-      let uploadedAt = null;
-      if (item.createdAt) {
+      try {
+        let rawItems = [];
+        
         try {
-          uploadedAt = formatter.format(new Date(item.createdAt));
+          const response = await fetch(`${API_BASE_URL}/public/gallery`);
+          if (response.ok) {
+            const payload = await response.json();
+            rawItems = Array.isArray(payload?.data) ? payload.data : [];
+          }
         } catch (error) {
-          console.error("Failed to format gallery date", error);
+          console.error("Error fetching gallery data:", error);
         }
-      }
 
-      return {
-        id: item.id ?? index,
-        title: item.title || `Dokumentasi ${index + 1}`,
-        caption: item.caption || null,
-        photoUrl,
-        uploadedAt,
-      };
-    })
-    .filter(Boolean);
+        // Fallback to landing data if no gallery
+        if (rawItems.length === 0) {
+          try {
+            const response = await fetch(`${API_BASE_URL}/public/landing`);
+            if (response.ok) {
+              const payload = await response.json();
+              if (payload && Array.isArray(payload.gallery)) {
+                rawItems = payload.gallery;
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching fallback landing data:", error);
+          }
+        }
+
+        const processedItems = rawItems
+          .map((item, index) => {
+            const photoUrl = resolveMediaUrl(item.photoPath) || item.photoPath || "";
+            if (!photoUrl) {
+              return null;
+            }
+
+            let uploadedAt = null;
+            if (item.createdAt) {
+              try {
+                uploadedAt = formatter.format(new Date(item.createdAt));
+              } catch (error) {
+                console.error("Failed to format gallery date", error);
+              }
+            }
+
+            return {
+              id: item.id ?? index,
+              title: item.title || `Dokumentasi ${index + 1}`,
+              caption: item.caption || null,
+              photoUrl,
+              uploadedAt,
+            };
+          })
+          .filter(Boolean);
+
+        setItems(processedItems);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGallery();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

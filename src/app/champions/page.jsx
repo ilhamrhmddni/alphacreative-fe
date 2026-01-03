@@ -1,3 +1,7 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { formatDate } from "@/lib/formatters";
@@ -5,8 +9,6 @@ import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-export const revalidate = 300;
 
 function getApiBaseUrl() {
   const raw =
@@ -17,32 +19,41 @@ function getApiBaseUrl() {
   return raw.replace(/\/$/, "");
 }
 
-export default async function ChampionsPage({ searchParams }) {
-  const page = Number(searchParams?.page || 1);
-  const limit = Number(searchParams?.limit || 10);
+export default function ChampionsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const page = Number(searchParams?.get("page") || 1);
+  const limit = Number(searchParams?.get("limit") || 10);
 
-  let payload = { data: [], meta: { total: 0, page, limit, totalPages: 0 } };
+  const [payload, setPayload] = useState({ data: [], meta: { total: 0, page, limit, totalPages: 0 } });
+  const [loading, setLoading] = useState(true);
 
-  try {
-    const params = new URLSearchParams();
-    if (page) params.set("page", String(page));
-    if (limit) params.set("limit", String(limit));
+  useEffect(() => {
+    const fetchChampions = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (page) params.set("page", String(page));
+        if (limit) params.set("limit", String(limit));
 
-    const res = await fetch(`${getApiBaseUrl()}/public/champions?${params.toString()}`, {
-      next: { revalidate: 300 },
-    });
+        const res = await fetch(`${getApiBaseUrl()}/public/champions?${params.toString()}`);
 
-    if (res.ok) {
-      const json = await res.json();
-      if (Array.isArray(json)) {
-        payload = { data: json, meta: { total: json.length, page, limit, totalPages: 1 } };
-      } else {
-        payload = json;
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json)) {
+            setPayload({ data: json, meta: { total: json.length, page, limit, totalPages: 1 } });
+          } else {
+            setPayload(json);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching champions:", error);
+      } finally {
+        setLoading(false);
       }
-    }
-  } catch (error) {
-    console.error("Error fetching champions:", error);
-  }
+    };
+
+    fetchChampions();
+  }, [page, limit]);
 
   const champions = (payload.data || []).map((item) => ({
     id: item.id,
