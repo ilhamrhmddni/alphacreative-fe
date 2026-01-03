@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { formatDate } from "@/lib/formatters";
 import { resolveMediaUrl } from "@/lib/utils";
 
@@ -60,7 +59,6 @@ function normalizeResponse(raw, fallbackPage, fallbackLimit, defaultLimit) {
 }
 
 export function NewsListing({ initialData, defaultLimit }) {
-  const searchParams = useSearchParams();
   const initialMeta = useMemo(() => {
     const rawMeta = initialData.meta || {};
     const safePage = rawMeta.page && rawMeta.page > 0 ? rawMeta.page : 1;
@@ -81,74 +79,17 @@ export function NewsListing({ initialData, defaultLimit }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const parsedPage = Number(searchParams.get("page"));
-  const parsedLimit = Number(searchParams.get("limit"));
-
-  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : initialMeta.page || 1;
-  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? parsedLimit : initialMeta.limit || defaultLimit;
+  const page = initialMeta.page || 1;
+  const limit = initialMeta.limit || defaultLimit;
 
   useEffect(() => {
-    const isInitial = page === initialMeta.page && limit === initialMeta.limit;
-    if (isInitial) {
-      setNews(initialNews);
-      setMeta(initialMeta);
-      setError(null);
-      setLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        const params = new URLSearchParams();
-        params.set("page", String(page));
-        if (limit) params.set("limit", String(limit));
-
-        const res = await fetch(`${API_URL}/berita?${params.toString()}`);
-        if (!res.ok) {
-          throw new Error(`Gagal mengambil berita (status ${res.status})`);
-        }
-        const raw = await res.json();
-        const normalized = normalizeResponse(raw, page, limit || defaultLimit, defaultLimit);
-        if (!cancelled) {
-          setNews(normalized.news);
-          setMeta(normalized.meta);
-        }
-      } catch (err) {
-        console.error("Error fetching berita:", err);
-        if (!cancelled) {
-          setError("Tidak dapat memuat berita saat ini.");
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [page, limit, initialMeta.page, initialMeta.limit, initialMeta, initialNews, defaultLimit]);
+    setNews(initialNews);
+    setMeta(initialMeta);
+    setError(null);
+    setLoading(false);
+  }, [initialNews, initialMeta]);
 
   const isEmpty = !loading && news.length === 0;
-
-  const buildPageLink = (targetPage) => {
-    const params = new URLSearchParams();
-    if (targetPage && targetPage !== 1) {
-      params.set("page", String(targetPage));
-    }
-    if (limit && limit !== defaultLimit) {
-      params.set("limit", String(limit));
-    }
-    const queryString = params.toString();
-    return queryString ? `/news?${queryString}` : `/news`;
-  };
 
   return (
     <div>
@@ -227,33 +168,6 @@ export function NewsListing({ initialData, defaultLimit }) {
           );
         })}
       </div>
-
-      <footer className="mt-10 flex flex-col gap-4 border-t border-border pt-6 md:flex-row md:items-center md:justify-between md:gap-6">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground">
-            Menampilkan halaman {meta.page} dari {meta.totalPages}
-          </p>
-          <p className="text-xs text-muted-foreground/80">Total {meta.total} berita</p>
-        </div>
-        <div className="flex gap-2">
-          {meta.page > 1 && (
-            <Link
-              href={buildPageLink(meta.page - 1)}
-              className="inline-flex items-center rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:border-primary/40 hover:text-primary"
-            >
-              ← Sebelumnya
-            </Link>
-          )}
-          {meta.page < meta.totalPages && (
-            <Link
-              href={buildPageLink(meta.page + 1)}
-              className="inline-flex items-center rounded-md border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground transition hover:border-primary/40 hover:text-primary"
-            >
-              Selanjutnya →
-            </Link>
-          )}
-        </div>
-      </footer>
     </div>
   );
 }
