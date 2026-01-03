@@ -25,6 +25,12 @@ export function resolveMediaUrl(value) {
     : MEDIA_ORIGIN;
   const normalizedPath = value.startsWith("/") ? value : `/${value}`;
 
+  // If normalizedOrigin is empty (i.e., when NEXT_PUBLIC_API_URL=/api),
+  // use the current window origin to properly resolve relative paths
+  if (!normalizedOrigin && typeof window !== "undefined") {
+    return `${window.location.origin}${normalizedPath}`;
+  }
+
   return `${normalizedOrigin}${normalizedPath}`;
 }
 
