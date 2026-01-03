@@ -12,23 +12,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const STATIC_PARAMS_LIMIT = 50;
 const DETAIL_REVALIDATE_SECONDS = 60;
 
-// Generate static params for dynamic route
-export async function generateStaticParams() {
-  try {
-    const res = await fetch(`${API_URL}/merchandise?limit=${STATIC_PARAMS_LIMIT}`);
-    if (!res.ok) return [];
-    const data = await res.json();
-    const items = Array.isArray(data) ? data : data.data || [];
-    return items.map((item) => ({
-      id: String(item.id),
-    }));
-  } catch {
-    return [];
-  }
-}
-
-export const revalidate = DETAIL_REVALIDATE_SECONDS;
-
 function sanitizeWhatsapp(number) {
   if (!number) return "";
   if (typeof number !== "string") return String(number);
@@ -81,6 +64,8 @@ export async function generateStaticParams() {
     return [];
   }
 }
+
+export const revalidate = DETAIL_REVALIDATE_SECONDS;
 
 export default async function MerchandiseDetail({ params }) {
   const routeParams = await params;
