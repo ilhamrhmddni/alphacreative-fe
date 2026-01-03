@@ -1,16 +1,17 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { formatCurrency } from "@/lib/formatters";
-import { notFound } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 import { resolveMediaUrl } from "@/lib/utils";
 import { ArrowLeft, Home, MessageCircle, ShoppingBag } from "lucide-react";
+import { useParams } from "next/navigation";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-const STATIC_PARAMS_LIMIT = 50;
-const DETAIL_REVALIDATE_SECONDS = 60;
 
 function sanitizeWhatsapp(number) {
   if (!number) return "";
@@ -41,53 +42,52 @@ function formatWhatsappDisplay(number) {
   return `+${digits}`;
 }
 
-export async function generateStaticParams() {
-  try {
-    const res = await fetch(`${API_URL}/merchandise`, {
-      next: { revalidate: 300 },
-    });
-    if (!res.ok) {
-      return [];
-    }
-    const payload = await res.json();
-    const items = Array.isArray(payload)
-      ? payload
-      : Array.isArray(payload?.data)
-      ? payload.data
-      : [];
-    return items
-      .filter((item) => item?.id != null)
-      .slice(0, STATIC_PARAMS_LIMIT)
-      .map((item) => ({ id: String(item.id) }));
-  } catch (err) {
-    console.warn("generateStaticParams merchandise gagal:", err);
-    return [];
-  }
-}
+export default function MerchandiseDetail() {
+  const params = useParams();
+  const { id } = params;
+  const [item, setItem] = useState(null);
+  const [whatsappNumber, setWhatsappNumber] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-export const revalidate = 60;
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchItem = async () => {
+      try {
+        const res = await fetch(`${API_URL}/merchandise/${id}`);
+        if (!res.ok) {
+          setError("Produk tidak ditemukan");
+          return;
+        }
+        const data = await res.json();
+        setItem(data);
+        setWhatsappNumber(data.whatsappNumber || null);
+      } catch (err) {
+        console.error("Error fetching merchandise:", err);
+        setError("Gagal memuat produk");
+      } finally {
+        setLoading(false);
+      }
+    };
 
-export default async function MerchandiseDetail({ params }) {
-  const routeParams = await params;
-  const { id } = routeParams;
-  let item = null;
-  let whatsappNumber = null;
+    fetchItem();
+  }, [id]);
 
-  try {
-    const res = await fetch(`${API_URL}/merchandise/${id}`, { 
-      next: { revalidate: 60 } 
-    });
-    if (res.ok) {
-      const data = await res.json();
-      item = data;
-      whatsappNumber = data.whatsappNumber || null;
-    }
-  } catch (err) {
-    console.error("Error fetching merchandise detail:", err);
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Loading...</p>
+      </div>
+    );
   }
 
-  if (!item) {
-    return notFound();
+  if (error || !item) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p>{error || "Produk tidak ditemukan"}</p>
+      </div>
+    );
   }
 
   const photo = item.photoPath ? resolveMediaUrl(item.photoPath) || item.photoPath : null;
