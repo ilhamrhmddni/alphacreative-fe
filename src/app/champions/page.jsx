@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
 import { formatDate } from "@/lib/formatters";
@@ -20,15 +19,25 @@ function getApiBaseUrl() {
 }
 
 export default function ChampionsPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const page = Number(searchParams?.get("page") || 1);
-  const limit = Number(searchParams?.get("limit") || 10);
-
-  const [payload, setPayload] = useState({ data: [], meta: { total: 0, page, limit, totalPages: 0 } });
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [mounted, setMounted] = useState(false);
+  const [payload, setPayload] = useState({ data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } });
   const [loading, setLoading] = useState(true);
 
+  // Read URL params only after mounting
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const pageParam = Number(params.get("page") || 1);
+    const limitParam = Number(params.get("limit") || 10);
+    setPage(pageParam);
+    setLimit(limitParam);
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const fetchChampions = async () => {
       try {
         const params = new URLSearchParams();
@@ -53,7 +62,7 @@ export default function ChampionsPage() {
     };
 
     fetchChampions();
-  }, [page, limit]);
+  }, [page, limit, mounted]);
 
   const champions = (payload.data || []).map((item) => ({
     id: item.id,
