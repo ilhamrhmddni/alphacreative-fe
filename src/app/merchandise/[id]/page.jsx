@@ -9,12 +9,25 @@ import { resolveMediaUrl } from "@/lib/utils";
 import { ArrowLeft, Home, MessageCircle, ShoppingBag } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-const envStaticLimit = Number(process.env.MERCH_STATIC_PARAMS_LIMIT);
-const STATIC_PARAMS_LIMIT = Number.isFinite(envStaticLimit) && envStaticLimit > 0 ? envStaticLimit : 50;
-const envStaticRevalidate = Number(process.env.MERCH_STATIC_PARAMS_REVALIDATE);
-const STATIC_PARAMS_REVALIDATE = Number.isFinite(envStaticRevalidate) && envStaticRevalidate >= 60 ? envStaticRevalidate : 300;
-const envDetailRevalidate = Number(process.env.MERCH_DETAIL_REVALIDATE);
-const DETAIL_REVALIDATE_SECONDS = Number.isFinite(envDetailRevalidate) && envDetailRevalidate >= 60 ? envDetailRevalidate : 60;
+const STATIC_PARAMS_LIMIT = 50;
+const DETAIL_REVALIDATE_SECONDS = 60;
+
+// Generate static params for dynamic route
+export async function generateStaticParams() {
+  try {
+    const res = await fetch(`${API_URL}/merchandise?limit=${STATIC_PARAMS_LIMIT}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    const items = Array.isArray(data) ? data : data.data || [];
+    return items.map((item) => ({
+      id: String(item.id),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export const revalidate = DETAIL_REVALIDATE_SECONDS;
 
 function sanitizeWhatsapp(number) {
   if (!number) return "";
