@@ -1,13 +1,14 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Calendar, MapPin, Users, Ticket, Star } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatCurrency } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
-
-export const revalidate = 300;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
@@ -37,50 +38,57 @@ function getCta(event) {
   return { href: "/auth/login", label: "Lihat Detail", variant: "outline", disabled: false };
 }
 
-export default async function EventsPage() {
-  let events = [];
+export default function EventsPage() {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  try {
-    const res = await fetch(`${API_URL}/events`, {
-      next: { revalidate: 300 },
-    });
+  useEffect(() => {
+    const fetchEvents = async () => {
+      try {
+        const res = await fetch(`${API_URL}/events`);
+        if (res.ok) {
+          const raw = await res.json();
+          const mappedEvents = (Array.isArray(raw) ? raw : []).map((item) => ({
+            id: item.id,
+            name: item.namaEvent || item.name || "Event Tanpa Nama",
+            description: item.deskripsiEvent || item.description || "",
+            date: item.tanggalEvent || item.date || null,
+            location: item.tempatEvent || item.location || "Lokasi belum ditentukan",
+            venue: item.venue || null,
+            status: normalizeStatus(item.status),
+            category:
+              Array.isArray(item.categories) && item.categories.length
+                ? item.categories
+                    .map((category) => category?.name)
+                    .filter(Boolean)
+                    .join(", ")
+                : "Event Lainnya",
+            categories: Array.isArray(item.categories)
+              ? item.categories.map((category) => ({
+                  id: category.id,
+                  name: category.name,
+                  description: category.description,
+                  quota: category.quota,
+                  participantCount: category._count?.peserta ?? category.participantCount ?? 0,
+                }))
+              : [],
+            isFeatured: Boolean(item.isFeatured),
+            photoPath: item.photoPath || item.cover || null,
+            kuota: item.kuota ?? null,
+            biaya: item.biaya ?? null,
+            participantCount: item.participantCount ?? item._count?.peserta ?? 0,
+          }));
+          setEvents(mappedEvents);
+        }
+      } catch (error) {
+        console.error("Failed to fetch events:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-    if (res.ok) {
-      const raw = await res.json();
-      events = (Array.isArray(raw) ? raw : []).map((item) => ({
-        id: item.id,
-        name: item.namaEvent || item.name || "Event Tanpa Nama",
-        description: item.deskripsiEvent || item.description || "",
-        date: item.tanggalEvent || item.date || null,
-        location: item.tempatEvent || item.location || "Lokasi belum ditentukan",
-        venue: item.venue || null,
-        status: normalizeStatus(item.status),
-        category:
-          Array.isArray(item.categories) && item.categories.length
-            ? item.categories
-                .map((category) => category?.name)
-                .filter(Boolean)
-                .join(", ")
-            : "Event Lainnya",
-        categories: Array.isArray(item.categories)
-          ? item.categories.map((category) => ({
-              id: category.id,
-              name: category.name,
-              description: category.description,
-              quota: category.quota,
-              participantCount: category._count?.peserta ?? category.participantCount ?? 0,
-            }))
-          : [],
-        isFeatured: Boolean(item.isFeatured),
-        photoPath: item.photoPath || item.cover || null,
-        kuota: item.kuota ?? null,
-        biaya: item.biaya ?? null,
-        participantCount: item.participantCount ?? item._count?.peserta ?? 0,
-      }));
-    }
-  } catch (error) {
-    console.error("Failed to fetch events:", error);
-  }
+    fetchEvents();
+  }, []);
 
   return (
     <div className="min-h-screen bg-background text-foreground">

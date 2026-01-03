@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Navbar } from "@/components/landing/Navbar";
 import { Footer } from "@/components/landing/Footer";
 import { formatCurrency } from "@/lib/formatters";
@@ -8,9 +11,6 @@ import { MerchandiseCard } from "./merchandise-card";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const DEFAULT_LIMIT = 200;
-
-// Revalidate merchandise page every 180 seconds (3 minutes)
-export const revalidate = 180;
 
 function mapMerchandiseItem(item) {
   if (!item) return null;
@@ -62,14 +62,14 @@ function buildWhatsappContactLink(number) {
   return `https://wa.me/${digits}`;
 }
 
-async function fetchMerchandise() {
+async function fetchMerchandise(abortSignal) {
   try {
     const params = new URLSearchParams();
     params.set("limit", String(DEFAULT_LIMIT));
     params.set("published", "true");
 
     const res = await fetch(`${API_URL}/merchandise?${params.toString()}`, {
-      next: { revalidate },
+      signal: abortSignal,
     });
 
     if (!res.ok) {
@@ -96,8 +96,33 @@ async function fetchMerchandise() {
   }
 }
 
-export default async function MerchandisePage() {
-  const { items: merchandise, whatsappNumber } = await fetchMerchandise();
+export default function MerchandisePage() {
+  const [merchandise, setMerchandise] = useState([]);
+  const [whatsappNumber, setWhatsappNumber] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const abortController = new AbortController();
+
+    const loadMerchandise = async () => {
+      try {
+        const data = await fetchMerchandise(abortController.signal);
+        setMerchandise(data.items);
+        setWhatsappNumber(data.whatsappNumber);
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.error("Failed to load merchandise:", error);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMerchandise();
+
+    return () => abortController.abort();
+  }, []);
+
   const whatsappDisplay = formatWhatsappDisplay(whatsappNumber);
   const whatsappContactLink = buildWhatsappContactLink(whatsappNumber);
 
