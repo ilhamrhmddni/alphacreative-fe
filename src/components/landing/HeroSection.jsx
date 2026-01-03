@@ -45,8 +45,8 @@ export function HeroSection({ heroEvent, stats }) {
                 Liga Pembaris by Alpha Creative
               </span>
               <h1 className="text-4xl font-bold leading-tight tracking-tight md:text-5xl lg:text-6xl">
-                Kompetisi LKBB
-                <span className="text-primary"> Terbaik</span>
+                Kompetisi Baris
+                <span className="text-primary"> Berbaris</span>
               </h1>
               <p className="mt-6 max-w-lg text-lg text-muted-foreground">
                 Temukan event kompetisi LKBB terkini. Daftar sebagai peserta dan pantau hasil perlombaan secara real-time.

@@ -101,7 +101,7 @@ export default function NewsPage() {
               <div>
                 <h1 className="text-2xl font-bold md:text-3xl">Kabar Terbaru</h1>
                 <p className="mt-1 max-w-2xl text-sm text-muted-foreground md:text-base">
-                  Informasi resmi seputar kegiatan, acara, dan pengumuman Alpha Creative Nusantara.
+                  Informasi resmi seputar kegiatan, acara, dan pengumuman Alpha Creative Space.
                 </p>
               </div>
               <Link

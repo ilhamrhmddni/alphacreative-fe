@@ -6,7 +6,7 @@ import { Footer } from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
 
 export const metadata = {
-  title: "Halaman Tidak Ditemukan | Alpha Creative Nusantara",
+  title: "Halaman Tidak Ditemukan | Alpha Creative space",
 };
 
 export default function NotFound() {

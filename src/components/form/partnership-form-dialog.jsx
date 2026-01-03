@@ -167,7 +167,7 @@ export default function PartnershipFormDialog({
               id="partner-name"
               value={form.name}
               onChange={(e) => handleChange("name", e.target.value)}
-              placeholder="Contoh: Alpha Creative Nusantara"
+              placeholder="Contoh: Alpha Creative space"
               className="h-9 rounded-md border-border"
               required
             />

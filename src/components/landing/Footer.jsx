@@ -18,7 +18,7 @@ export function Footer() {
               </div>
             </div>
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
-              Platform manajemen LKBB terintegrasi oleh Alpha Creative Nusantara untuk penyelenggara event di seluruh Indonesia.
+              Platform manajemen LKBB terintegrasi oleh Alpha Creative space untuk penyelenggara event di seluruh Indonesia.
             </p>
           </div>
 

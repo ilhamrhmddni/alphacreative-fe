@@ -7,8 +7,8 @@ import { ThemeInitScript } from "@/components/theme-init-script";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Alpha Creative Nusantara",
-  description: "Platform manajemen LKBB oleh Alpha Creative Nusantara",
+  title: "Alpha Creative Space",
+  description: "Alpha Creative Space",
   icons: {
     icon: [
       { url: "/favicon.svg", type: "image/svg+xml" },

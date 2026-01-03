@@ -136,7 +136,7 @@ export default function MerchandisePage() {
               <div>
                 <h1 className="text-2xl font-bold md:text-3xl">Katalog Merchandise</h1>
                 <p className="mt-1 max-w-2xl text-sm text-muted-foreground md:text-base">
-                  Temukan produk resmi Alpha Creative Nusantara. Setiap pembelian mendukung kegiatan dan kompetisi kami.
+                  Temukan produk resmi Alpha Creative Space. Setiap pembelian mendukung kegiatan dan kompetisi kami.
                 </p>
               </div>
               <Link

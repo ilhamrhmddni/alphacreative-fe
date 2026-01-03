@@ -103,10 +103,10 @@ export default function GalleryPage() {
             </div>
             <div>
               <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-                Galeri Foto Alpha Creative Nusantara
+                Galeri Foto Alpha Creative Space
               </h1>
               <p className="mt-3 max-w-3xl text-sm text-muted-foreground">
-                Lihat dokumentasi terbaik dari berbagai kegiatan Alpha Creative Nusantara. Setiap momen kami abadikan untuk menginspirasi dan mengenang perjalanan komunitas.
+                Lihat dokumentasi terbaik dari berbagai kegiatan Alpha Creative space. Setiap momen kami abadikan untuk menginspirasi dan mengenang perjalanan komunitas.
               </p>
             </div>
             <div>

@@ -9,7 +9,7 @@ import { resolveMediaUrl } from "@/lib/utils";
 
 const DEFAULT_PARTNERS = [
   {
-    name: "Alpha Creative Nusantara",
+    name: "Alpha Creative space",
     role: "Event Partner",
     description: "Kolaborasi program pelatihan dan showcase baris berbaris lintas daerah.",
     logo: null,
@@ -21,7 +21,7 @@ const DEFAULT_PARTNERS = [
     logo: null,
   },
   {
-    name: "Sanggar Nusantara",
+    name: "Sanggar space",
     role: "Creative Studio",
     description: "Produksi materi visual dan dokumentasi event nasional.",
     logo: null,

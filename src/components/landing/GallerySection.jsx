@@ -35,7 +35,7 @@ export function GallerySection({ items = [] }) {
             Kilas Momen Alpha Creative
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-            Nikmati dokumentasi foto-foto pilihan dari berbagai kegiatan Alpha Creative Nusantara.
+            Nikmati dokumentasi foto-foto pilihan dari berbagai kegiatan Alpha Creative space.
           </p>
           {showLink && (
             <div className="mt-6">
