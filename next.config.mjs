@@ -12,6 +12,5 @@ export default {
     ],
   },
   compress: true,
-  output: "export",
   productionBrowserSourceMaps: false,
 };
