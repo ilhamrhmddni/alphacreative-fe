@@ -206,10 +206,6 @@ export default function NewsFormDialog({
 
     try {
       setSubmitting(true);
-      if (!form.eventId) {
-        setEventError("Pilih event terkait.");
-        return;
-      }
       if (pendingFile) {
         setUploadingPhoto(true);
         try {
@@ -229,13 +225,11 @@ export default function NewsFormDialog({
         deskripsi: stringOrEmpty(form.deskripsi),
         tanggal: form.tanggal ? new Date(form.tanggal).toISOString() : null,
         photoPath: photoPath || null,
-        eventId: Number(form.eventId),
         tags: form.tags.map((tag) => sanitizeText(tag)).filter(Boolean),
       };
 
-      if (!Number.isFinite(payload.eventId)) {
-        setEventError("Pilih event terkait.");
-        return;
+      if (form.eventId) {
+        payload.eventId = Number(form.eventId);
       }
 
       await onSubmit(payload);
@@ -268,7 +262,7 @@ export default function NewsFormDialog({
               : "Unggah berita atau pengumuman baru untuk pengunjung."}
           </DialogDescription>
           <p className="mt-2 text-[11px] text-muted-foreground">
-            Kolom bertanda <span className="text-red-500">*</span> wajib diisi.
+            Kolom bertanda <span className="text-red-500">*</span> wajib diisi. Kolom lain opsional.
           </p>
         </DialogHeader>
 
@@ -288,17 +282,18 @@ export default function NewsFormDialog({
 
           <div className="space-y-2">
             <label className="text-xs sm:text-sm font-medium text-foreground">
-              Event Terkait <span className="text-red-500">*</span>
+              Event Terkait <span className="text-gray-400">(opsional)</span>
             </label>
             <Select
-              value={form.eventId || undefined}
-              onValueChange={(value) => handleChange("eventId", value)}
-              disabled={eventsLoading || !eventOptions.length || isBusy}
+              value={form.eventId || ""}
+              onValueChange={(value) => handleChange("eventId", value || null)}
+              disabled={eventsLoading || isBusy}
             >
               <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:text-sm">
-                <SelectValue placeholder={eventsLoading ? "Memuat event..." : "Pilih event"} />
+                <SelectValue placeholder={eventsLoading ? "Memuat event..." : "Pilih event (atau biarkan kosong)"} />
               </SelectTrigger>
               <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                <SelectItem value="">Tidak ada event</SelectItem>
                 {eventOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
@@ -306,11 +301,6 @@ export default function NewsFormDialog({
                 ))}
               </SelectContent>
             </Select>
-            {!eventsLoading && !eventOptions.length && (
-              <p className="text-[11px] text-amber-600">
-                Belum ada event. Buat event terlebih dahulu.
-              </p>
-            )}
             {eventError && (
               <p className="text-[11px] text-red-500">{eventError}</p>
             )}
