@@ -22,7 +22,6 @@ import {
 
 import { NewsTable } from "@/components/tables/news-table";
 import NewsFormDialog from "@/components/form/news-form-dialog";
-import { normalizeApiResponse } from "@/utils/parsers";
 
 export default function BeritaPage() {
   const router = useRouter();
@@ -55,7 +54,7 @@ export default function BeritaPage() {
       setLoading(true);
       setError("");
       const data = await get("/berita");
-      setNews(normalizeApiResponse(data));
+      setNews(Array.isArray(data) ? data : []);
     } catch (err) {
       console.error(err);
       setError(err.message || "Gagal memuat berita");
