@@ -9,8 +9,8 @@ import { MerchandiseCard } from "./merchandise-card";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const DEFAULT_LIMIT = 200;
 
-const envRevalidate = Number(process.env.MERCH_PAGE_REVALIDATE);
-export const revalidate = Number.isFinite(envRevalidate) && envRevalidate >= 60 ? envRevalidate : 180;
+// Revalidate merchandise page every 180 seconds (3 minutes)
+export const revalidate = 180;
 
 function mapMerchandiseItem(item) {
   if (!item) return null;
