@@ -228,8 +228,12 @@ export default function NewsFormDialog({
         tags: form.tags.map((tag) => sanitizeText(tag)).filter(Boolean),
       };
 
-      if (form.eventId) {
-        payload.eventId = Number(form.eventId);
+      // Only include eventId if it has a valid value (not empty string)
+      if (form.eventId && form.eventId !== "") {
+        const eventIdNum = Number(form.eventId);
+        if (!Number.isNaN(eventIdNum)) {
+          payload.eventId = eventIdNum;
+        }
       }
 
       await onSubmit(payload);
