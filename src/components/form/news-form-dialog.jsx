@@ -210,7 +210,6 @@ export default function NewsFormDialog({
                 />
               </SelectTrigger>
               <SelectContent className="rounded-md border bg-card shadow-md">
-                <SelectItem value="">Tidak ada event</SelectItem>
                 {eventOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
