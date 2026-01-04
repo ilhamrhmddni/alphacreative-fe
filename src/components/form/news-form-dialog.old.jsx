@@ -1,12 +1,17 @@
 "use client";
 
 import Image from "next/image";
-import { useRef, useState, useCallback, useMemo } from "react";
-import { BaseFormDialog } from "./base-form-dialog";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -23,8 +28,12 @@ import {
   AlertDialogDescription,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { uploadNewsPhoto } from "@/lib/upload";
+import { uploadNewsPhoto as uploadImage } from "@/lib/upload";
 import { resolveMediaUrl } from "@/lib/utils";
+import {
+  sanitizeText,
+  stringOrEmpty,
+} from "@/lib/form-helpers";
 import { Bold, CornerDownLeft, Italic, Quote, X } from "lucide-react";
 
 function toDateInputValue(dateLike) {
@@ -34,21 +43,24 @@ function toDateInputValue(dateLike) {
   return d.toISOString().slice(0, 10);
 }
 
-const createInitialForm = (initialData) => {
-  const eventId = initialData?.eventId ?? initialData?.event?.id ?? null;
+function createInitialForm(initialData) {
+  const eventId =
+    initialData?.eventId ?? initialData?.event?.id ?? null;
   const tags = Array.isArray(initialData?.tags)
-    ? initialData.tags.filter((tag, idx, arr) => tag && arr.indexOf(tag) === idx)
+    ? initialData.tags
+        .map((tag) => sanitizeText(tag))
+        .filter((tag, idx, arr) => tag && arr.indexOf(tag) === idx)
     : [];
 
   return {
-    title: initialData?.title || "",
-    deskripsi: initialData?.deskripsi || "",
+    title: stringOrEmpty(initialData?.title),
+    deskripsi: stringOrEmpty(initialData?.deskripsi),
     tanggal: toDateInputValue(initialData?.tanggal),
-    photoPath: initialData?.photoPath || "",
+    photoPath: stringOrEmpty(initialData?.photoPath),
     eventId: eventId != null ? String(eventId) : "",
     tags,
   };
-};
+}
 
 export default function NewsFormDialog({
   open,
@@ -58,27 +70,76 @@ export default function NewsFormDialog({
   eventOptions = [],
   eventsLoading = false,
 }) {
-  const isEdit = Boolean(initialData);
+  const initialFormState = useMemo(() => createInitialForm(initialData), [initialData]);
+  const [form, setForm] = useState(initialFormState);
   const [pendingFile, setPendingFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState("");
+  const [previewUrl, setPreviewUrl] = useState(initialFormState.photoPath);
   const [photoError, setPhotoError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [eventError, setEventError] = useState("");
   const [tagInput, setTagInput] = useState("");
   const textareaRef = useRef(null);
 
-  const handlePhotoChange = useCallback((e) => {
+  useEffect(() => {
+    setForm(initialFormState);
+    setPendingFile(null);
+    setPreviewUrl(initialFormState.photoPath);
+    setPhotoError("");
+    setSubmitting(false);
+    setUploadingPhoto(false);
+    setEventError("");
+    setTagInput("");
+  }, [initialFormState]);
+
+  useEffect(() => {
+    if (!pendingFile) return;
+    const url = URL.createObjectURL(pendingFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pendingFile]);
+
+  function handleChange(field, value) {
+    if (field === "eventId") {
+      setEventError("");
+    }
+    setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function handlePhotoChange(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     setPhotoError("");
     setPendingFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
-  }, []);
+  }
 
-  const applyFormatting = useCallback((command, form, handleChange) => {
+  function handleAddTag(value) {
+    const nextValue = sanitizeText(value ?? tagInput);
+    if (!nextValue) return;
+    setForm((prev) => {
+      if (prev.tags.includes(nextValue)) return prev;
+      return { ...prev, tags: [...prev.tags, nextValue] };
+    });
+    setTagInput("");
+  }
+
+  function handleRemoveTag(tag) {
+    setForm((prev) => ({
+      ...prev,
+      tags: prev.tags.filter((item) => item !== tag),
+    }));
+  }
+
+  function handleTagKeyDown(e) {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      handleAddTag(e.currentTarget.value);
+    }
+  }
+
+  function applyFormatting(command) {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    
     const { selectionStart, selectionEnd, value } = textarea;
     const selectedText = value.slice(selectionStart, selectionEnd);
     let nextValue = value;
@@ -88,7 +149,10 @@ export default function NewsFormDialog({
     const wrap = (prefix, suffix, placeholder = "teks") => {
       const content = selectedText || placeholder;
       const insertion = `${prefix}${content}${suffix}`;
-      nextValue = value.slice(0, selectionStart) + insertion + value.slice(selectionEnd);
+      nextValue =
+        value.slice(0, selectionStart) +
+        insertion +
+        value.slice(selectionEnd);
       start = selectionStart + prefix.length;
       end = start + content.length;
     };
@@ -100,57 +164,71 @@ export default function NewsFormDialog({
       case "italic":
         wrap("_", "_");
         break;
-      case "quote":
+      case "quote": {
         const quoteBlock = (selectedText || "kutipan")
           .split("\n")
           .map((line) => `> ${line}`)
           .join("\n");
-        nextValue = value.slice(0, selectionStart) + quoteBlock + value.slice(selectionEnd);
+        nextValue =
+          value.slice(0, selectionStart) +
+          quoteBlock +
+          value.slice(selectionEnd);
         start = selectionStart;
         end = selectionStart + quoteBlock.length;
         break;
-      case "break":
-        nextValue = value.slice(0, selectionStart) + "\n" + value.slice(selectionEnd);
-        start = selectionStart + 1;
+      }
+      case "break": {
+        const insertion = "\n";
+        nextValue =
+          value.slice(0, selectionStart) +
+          insertion +
+          value.slice(selectionEnd);
+        start = selectionStart + insertion.length;
         end = start;
         break;
+      }
       default:
         return;
     }
 
-    handleChange("deskripsi", nextValue);
+    setForm((prev) => ({ ...prev, deskripsi: nextValue }));
     requestAnimationFrame(() => {
       textarea.focus();
       textarea.setSelectionRange(start, end);
     });
-  }, []);
+  }
 
-  const handleSubmitForm = useCallback(async (form) => {
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!onSubmit) return;
+
     let photoPath = form.photoPath;
 
     try {
+      setSubmitting(true);
       if (pendingFile) {
         setUploadingPhoto(true);
         try {
-          const uploadedUrl = await uploadNewsPhoto(pendingFile);
+          const uploadedUrl = await uploadImage(pendingFile);
           photoPath = uploadedUrl;
         } catch (err) {
           console.error(err);
           setPhotoError(err.message || "Gagal mengunggah foto");
-          throw err;
+          return;
         } finally {
           setUploadingPhoto(false);
         }
       }
 
       const payload = {
-        title: form.title?.trim(),
-        deskripsi: form.deskripsi || "",
+        title: sanitizeText(form.title),
+        deskripsi: stringOrEmpty(form.deskripsi),
         tanggal: form.tanggal ? new Date(form.tanggal).toISOString() : null,
         photoPath: photoPath || null,
-        tags: form.tags.filter(Boolean),
+        tags: form.tags.map((tag) => sanitizeText(tag)).filter(Boolean),
       };
 
+      // Only include eventId if it has a valid value (not empty string)
       if (form.eventId && form.eventId !== "") {
         const eventIdNum = Number(form.eventId);
         if (!Number.isNaN(eventIdNum)) {
@@ -159,81 +237,66 @@ export default function NewsFormDialog({
       }
 
       await onSubmit(payload);
-      
-      // Reset state after successful submit
-      setPendingFile(null);
-      setPreviewUrl("");
-      setPhotoError("");
-      setTagInput("");
-    } catch (err) {
-      throw err;
+    } finally {
+      setSubmitting(false);
     }
-  }, [pendingFile, onSubmit]);
+  }
 
+  const isEdit = Boolean(initialData);
+  const isBusy = submitting || uploadingPhoto;
   const previewSource = useMemo(() => {
     if (previewUrl) return previewUrl;
-    if (initialData?.photoPath) {
-      return resolveMediaUrl(initialData.photoPath) || initialData.photoPath;
+    if (form.photoPath) {
+      return resolveMediaUrl(form.photoPath) || form.photoPath;
     }
     return "";
-  }, [previewUrl, initialData?.photoPath]);
+  }, [previewUrl, form.photoPath]);
+  const noEventsAvailable = !eventOptions.length;
 
   return (
-    <BaseFormDialog
-      open={open}
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          setPendingFile(null);
-          setPreviewUrl("");
-          setPhotoError("");
-          setTagInput("");
-        }
-        onOpenChange(isOpen);
-      }}
-      title={isEdit ? "Edit Berita" : "Tambah Berita"}
-      description={
-        isEdit
-          ? "Perbarui informasi berita yang tampil ke publik."
-          : "Unggah berita atau pengumuman baru untuk pengunjung."
-      }
-      initialData={initialData}
-      createInitialForm={createInitialForm}
-      onSubmit={handleSubmitForm}
-      submitting={uploadingPhoto}
-      submitLabel={uploadingPhoto ? "Mengunggah foto..." : isEdit ? "Simpan Perubahan" : "Publikasikan"}
-    >
-      {({ form, handleChange }) => (
-        <>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[95vw] max-w-lg sm:max-w-xl max-h-[90vh] overflow-y-auto rounded-xl border border-border bg-card p-0 shadow-lg">
+        <DialogHeader className="px-5 pt-5 pb-3 border-b border-border">
+          <DialogTitle className="text-base sm:text-lg font-semibold text-foreground">
+            {isEdit ? "Edit Berita" : "Tambah Berita"}
+          </DialogTitle>
+          <DialogDescription className="text-xs sm:text-sm text-muted-foreground mt-1">
+            {isEdit
+              ? "Perbarui informasi berita yang tampil ke publik."
+              : "Unggah berita atau pengumuman baru untuk pengunjung."}
+          </DialogDescription>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Kolom bertanda <span className="text-red-500">*</span> wajib diisi. Kolom lain opsional.
+          </p>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="px-5 pt-4 pb-6 space-y-4">
           <div className="space-y-2">
-            <Label className="text-xs sm:text-sm font-medium">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Judul Berita <span className="text-red-500">*</span>
-            </Label>
+            </label>
             <Input
               required
               value={form.title}
               onChange={(e) => handleChange("title", e.target.value)}
               placeholder="Masukkan judul berita"
-              className="h-9 rounded-md"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs sm:text-sm font-medium">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Event Terkait <span className="text-gray-400">(opsional)</span>
-            </Label>
+            </label>
             <Select
               value={form.eventId || ""}
-              onValueChange={(value) => handleChange("eventId", value || "")}
-              disabled={eventsLoading}
+              onValueChange={(value) => handleChange("eventId", value || null)}
+              disabled={eventsLoading || isBusy}
             >
-              <SelectTrigger className="h-9 w-full rounded-md">
-                <SelectValue
-                  placeholder={
-                    eventsLoading ? "Memuat event..." : "Pilih event (atau biarkan kosong)"
-                  }
-                />
+              <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:text-sm">
+                <SelectValue placeholder={eventsLoading ? "Memuat event..." : "Pilih event (atau biarkan kosong)"} />
               </SelectTrigger>
-              <SelectContent className="rounded-md border bg-card shadow-md">
+              <SelectContent className="rounded-md border border-border bg-card shadow-md">
                 <SelectItem value="">Tidak ada event</SelectItem>
                 {eventOptions.map((option) => (
                   <SelectItem key={option.value} value={option.value}>
@@ -242,32 +305,35 @@ export default function NewsFormDialog({
                 ))}
               </SelectContent>
             </Select>
+            {eventError && (
+              <p className="text-[11px] text-red-500">{eventError}</p>
+            )}
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs sm:text-sm font-medium">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Tanggal Tayang <span className="text-red-500">*</span>
-            </Label>
+            </label>
             <Input
               type="date"
               required
               value={form.tanggal}
               onChange={(e) => handleChange("tanggal", e.target.value)}
-              className="h-9 rounded-md"
+              className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs sm:text-sm font-medium">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Deskripsi <span className="text-red-500">*</span>
-            </Label>
-            <div className="flex flex-wrap gap-1 mb-2">
+            </label>
+            <div className="flex flex-wrap gap-1">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
                 className="h-8 rounded-md px-2"
-                onClick={() => applyFormatting("bold", form, handleChange)}
+                onClick={() => applyFormatting("bold")}
               >
                 <Bold className="h-4 w-4" />
               </Button>
@@ -276,7 +342,7 @@ export default function NewsFormDialog({
                 variant="outline"
                 size="sm"
                 className="h-8 rounded-md px-2"
-                onClick={() => applyFormatting("italic", form, handleChange)}
+                onClick={() => applyFormatting("italic")}
               >
                 <Italic className="h-4 w-4" />
               </Button>
@@ -285,7 +351,7 @@ export default function NewsFormDialog({
                 variant="outline"
                 size="sm"
                 className="h-8 rounded-md px-2"
-                onClick={() => applyFormatting("quote", form, handleChange)}
+                onClick={() => applyFormatting("quote")}
               >
                 <Quote className="h-4 w-4" />
               </Button>
@@ -294,7 +360,7 @@ export default function NewsFormDialog({
                 variant="outline"
                 size="sm"
                 className="h-8 rounded-md px-2"
-                onClick={() => applyFormatting("break", form, handleChange)}
+                onClick={() => applyFormatting("break")}
               >
                 <CornerDownLeft className="h-4 w-4" />
               </Button>
@@ -306,43 +372,31 @@ export default function NewsFormDialog({
               onChange={(e) => handleChange("deskripsi", e.target.value)}
               placeholder="Tuliskan isi berita atau pengumuman..."
               ref={textareaRef}
-              className="rounded-md text-xs sm:text-sm"
+              className="rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
             />
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs sm:text-sm font-medium">Tag Berita</Label>
-            <div className="flex gap-2">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
+              Tag Berita
+            </label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Input
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === ",") {
-                    e.preventDefault();
-                    const value = tagInput.trim();
-                    if (value && !form.tags.includes(value)) {
-                      handleChange("tags", [...form.tags, value]);
-                      setTagInput("");
-                    }
-                  }
-                }}
+                onKeyDown={handleTagKeyDown}
                 placeholder="Tekan Enter untuk menambahkan tag"
-                className="h-9 rounded-md text-xs sm:text-sm"
+                className="h-9 rounded-md border-border text-xs sm:text-sm placeholder:text-muted-foreground"
+                disabled={isBusy}
               />
               <Button
                 type="button"
                 variant="outline"
                 className="h-9 rounded-md"
-                disabled={!tagInput.trim()}
-                onClick={() => {
-                  const value = tagInput.trim();
-                  if (value && !form.tags.includes(value)) {
-                    handleChange("tags", [...form.tags, value]);
-                    setTagInput("");
-                  }
-                }}
+                disabled={!tagInput.trim() || isBusy}
+                onClick={() => handleAddTag()}
               >
-                Tambah
+                Tambah Tag
               </Button>
             </div>
             {form.tags.length > 0 && (
@@ -350,18 +404,13 @@ export default function NewsFormDialog({
                 {form.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="inline-flex items-center gap-1 rounded-full border bg-muted px-2 py-0.5 text-[11px] font-medium"
+                    className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground"
                   >
                     {tag}
                     <button
                       type="button"
-                      className="rounded-full p-0.5"
-                      onClick={() =>
-                        handleChange(
-                          "tags",
-                          form.tags.filter((t) => t !== tag)
-                        )
-                      }
+                      className="rounded-full p-0.5 text-muted-foreground hover:text-muted-foreground"
+                      onClick={() => handleRemoveTag(tag)}
                       aria-label={`Hapus tag ${tag}`}
                     >
                       <X className="h-3 w-3" />
@@ -373,15 +422,17 @@ export default function NewsFormDialog({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-xs sm:text-sm font-medium">
+            <label className="text-xs sm:text-sm font-medium text-foreground">
               Foto Pendukung{" "}
-              <span className="text-xs text-muted-foreground">(Opsional)</span>
-            </Label>
+              <span className="text-[10px] sm:text-xs text-muted-foreground">
+                (Opsional)
+              </span>
+            </label>
             <input
               type="file"
               accept="image/*"
               onChange={handlePhotoChange}
-              className="block w-full cursor-pointer text-xs file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-1.5 file:text-xs file:font-medium file:hover:bg-muted sm:text-sm"
+              className="block w-full cursor-pointer text-xs text-muted-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-card file:px-3 file:py-1.5 file:text-xs file:font-medium file:hover:bg-muted sm:text-sm"
             />
 
             {previewSource && (
@@ -396,17 +447,17 @@ export default function NewsFormDialog({
                     Lihat preview
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent className="sm:max-w-md rounded-xl border bg-card">
+                <AlertDialogContent className="sm:max-w-md rounded-xl border border-border bg-card">
                   <AlertDialogHeader>
                     <AlertDialogTitle>Preview Foto</AlertDialogTitle>
-                    <AlertDialogDescription className="text-xs">
+                    <AlertDialogDescription className="text-xs text-muted-foreground">
                       {pendingFile
                         ? "Ini adalah gambar yang baru kamu pilih."
                         : "Ini foto yang tersimpan saat ini."}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <div className="mt-2 flex w-full justify-center">
-                    <div className="relative max-h-[60vh] w-full overflow-hidden rounded-md border">
+                    <div className="relative max-h-[60vh] w-full overflow-hidden rounded-md border border-border">
                       <Image
                         src={previewSource}
                         alt="Preview foto berita"
@@ -426,7 +477,8 @@ export default function NewsFormDialog({
 
             {!pendingFile && form.photoPath && (
               <p className="text-[11px] text-muted-foreground break-all">
-                Foto tersimpan: <span className="font-medium">{form.photoPath}</span>
+                Foto tersimpan:
+                <span className="ml-1 font-medium">{form.photoPath}</span>
               </p>
             )}
 
@@ -434,8 +486,33 @@ export default function NewsFormDialog({
               <p className="text-[11px] text-red-500">{photoError}</p>
             )}
           </div>
-        </>
-      )}
-    </BaseFormDialog>
+
+          <div className="flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange?.(false)}
+              disabled={isBusy}
+              className="h-9 w-full rounded-md sm:w-auto"
+            >
+              Batal
+            </Button>
+            <Button
+              type="submit"
+              disabled={isBusy}
+              className="h-9 w-full rounded-md sm:w-auto"
+            >
+              {uploadingPhoto
+                ? "Mengunggah foto..."
+                : submitting
+                ? "Menyimpan..."
+                : isEdit
+                ? "Simpan Perubahan"
+                : "Publikasikan"}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
