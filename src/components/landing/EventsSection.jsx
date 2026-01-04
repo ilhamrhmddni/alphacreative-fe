@@ -103,7 +103,7 @@ export function EventsSection({ events }) {
                   variant={event.status === "open" ? "default" : "outline"}
                   className="w-full"
                 >
-                  <Link href={event.status === "open" ? "/events" : event.status === "upcoming" ? "/events" : "/champions"}>
+                  <Link href="/events">
                     {event.status === "open"
                       ? "Daftar Sekarang"
                       : event.status === "upcoming"
