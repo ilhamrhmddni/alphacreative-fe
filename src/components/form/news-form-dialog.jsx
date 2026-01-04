@@ -495,7 +495,7 @@ export default function NewsFormDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isBusy || noEventsAvailable}
+              disabled={isBusy}
               className="h-9 w-full rounded-md sm:w-auto"
             >
               {uploadingPhoto
