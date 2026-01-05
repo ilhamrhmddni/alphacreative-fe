@@ -13,15 +13,18 @@ export const revalidate = 60; // ISR: revalidate every 60 seconds
 // Generate static params - fetch recent berita IDs to pre-generate pages
 export async function generateStaticParams() {
   try {
-    const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000/api";
-    const res = await fetch(`${apiUrl}/berita?limit=10`, { cache: 'no-store' });
+    const apiUrl = "http://127.0.0.1:4000/api"; // Use localhost directly
+    const res = await fetch(`${apiUrl}/berita?limit=20`, { 
+      next: { revalidate: 3600 } // Cache for 1 hour in build
+    });
     if (!res.ok) return [];
     
     const data = await res.json();
     const berita = data.data || data;
-    return berita.map((item) => ({ id: String(item.id) }));
+    return berita.slice(0, 10).map((item) => ({ id: String(item.id) }));
   } catch (err) {
     console.error("Error generating static params:", err.message);
+    // Return empty to allow on-demand rendering for other IDs
     return [];
   }
 }
@@ -32,9 +35,9 @@ export default async function NewsDetail({ params }) {
   let item = null;
   
   try {
-    const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000/api";
+    const apiUrl = "http://127.0.0.1:4000/api"; // Use localhost for server-side fetch
     const res = await fetch(`${apiUrl}/berita/${id}`, { 
-      cache: 'no-store',
+      next: { revalidate: 60 }, // Revalidate every 60 seconds for ISR
       headers: { 'Accept': 'application/json' }
     });
     if (res.ok) {
