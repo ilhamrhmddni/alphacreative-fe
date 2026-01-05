@@ -16,26 +16,37 @@ export default async function NewsDetail({ params }) {
   let item = null;
   
   try {
-    // Try localhost first (internal network), fallback to public URL
-    let apiUrl = "http://localhost:4000/api";
-    let res = await Promise.race([
-      fetch(`${apiUrl}/berita/${id}`, {  headers: { 'Accept': 'application/json' } }),
-      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
-    ]).catch(async () => {
-      // Fallback to public URL if localhost fails
-      apiUrl = "https://alphacreativespace.com/api";
-      return fetch(`${apiUrl}/berita/${id}`, { headers: { 'Accept': 'application/json' } });
-    });
+    // Try 127.0.0.1 first (localhost binding)
+    const urls = [
+      "http://127.0.0.1:4000/api",
+      "http://localhost:4000/api",
+      process.env.INTERNAL_API_URL || "http://localhost:4000/api"
+    ];
     
-    if (res && res.ok) {
-      const data = await res.json();
-      item = data;
+    for (const apiUrl of urls) {
+      try {
+        const res = await Promise.race([
+          fetch(`${apiUrl}/berita/${id}`, { headers: { 'Accept': 'application/json' } }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
+        ]);
+        
+        if (res && res.ok) {
+          const data = await res.json();
+          item = data;
+          console.log(`[news/[id]] Successfully fetched from ${apiUrl}`);
+          break;
+        }
+      } catch (err) {
+        console.log(`[news/[id]] Failed with ${apiUrl}: ${err.message}`);
+        continue;
+      }
     }
   } catch (err) {
-    console.error("[news/[id]] Error fetching berita:", err.message);
+    console.error("[news/[id]] All fetch attempts failed:", err.message);
   }
 
   if (!item) {
+    console.error(`[news/[id]] Failed to fetch berita with id=${id}, returning notFound`);
     return notFound();
   }
 
