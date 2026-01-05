@@ -53,12 +53,12 @@ export function NewsTable({
 
   return (
     <div className="w-full">
-      <div className="space-y-3 px-3 sm:px-4 py-3 sm:hidden">
+      <div className="space-y-3 px-3 sm:px-4 py-3 sm:hidden overflow-x-hidden">
         {items.map((news, idx) => (
           <div
             key={news.id}
             onClick={() => onSelect?.(news)}
-            className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md"
+            className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all hover:-translate-y-[1px] hover:shadow-md active:touch-pan-y"
           >
             <div className="flex items-start justify-between gap-2">
               <div>
