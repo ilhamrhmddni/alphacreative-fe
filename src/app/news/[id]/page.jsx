@@ -8,30 +8,39 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Home } from "lucide-react";
 
-export const dynamic = "force-dynamic"; // Treat as dynamic route - fetch on demand
-export const revalidate = 0; // Don't cache - always fetch fresh
+export const revalidate = 60; // ISR: revalidate every 60 seconds
 
-// Generate static params - return empty array to allow all other params to be rendered on demand
+// Generate static params - fetch recent berita IDs to pre-generate pages
 export async function generateStaticParams() {
-  return [];
+  try {
+    const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000/api";
+    const res = await fetch(`${apiUrl}/berita?limit=10`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    
+    const data = await res.json();
+    const berita = data.data || data;
+    return berita.map((item) => ({ id: String(item.id) }));
+  } catch (err) {
+    console.error("Error generating static params:", err.message);
+    return [];
+  }
 }
 
 export default async function NewsDetail({ params }) {
-  const routeParams = await params; // params arrives as a Promise in Turbopack builds
+  const routeParams = await params;
   const { id } = routeParams;
   let item = null;
   
   try {
-    // Use internal API URL for server-side fetch to avoid proxy issues
-    const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+    const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:4000/api";
     const res = await fetch(`${apiUrl}/berita/${id}`, { 
       cache: 'no-store',
-      headers: {
-        'Accept': 'application/json',
-      }
+      headers: { 'Accept': 'application/json' }
     });
-    if (res.ok) item = await res.json();
-    else console.error(`API responded with status ${res.status}`);
+    if (res.ok) {
+      const data = await res.json();
+      item = data;
+    }
   } catch (err) {
     console.error("Error fetching berita detail:", err.message);
   }
