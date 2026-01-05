@@ -125,8 +125,8 @@ export default function MerchandisePage() {
   useEffect(() => {
     async function fetchWhatsapp() {
       try {
-        const settings = await get("/settings?key=merch.whatsapp");
-        setWhatsappNumber(settings?.value || null);
+        const config = await get("/merchandise/config");
+        setWhatsappNumber(config?.whatsappNumber || null);
       } catch (err) {
         console.warn("Could not fetch WhatsApp:", err);
       } finally {

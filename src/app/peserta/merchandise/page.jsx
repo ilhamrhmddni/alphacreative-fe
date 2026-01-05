@@ -54,10 +54,10 @@ export default function PesertaMerchandisePage() {
         const items = Array.isArray(merchData) ? merchData : Array.isArray(merchData?.data) ? merchData.data : [];
         setMerchandise(items.filter((item) => item.isPublished));
 
-        // Fetch WhatsApp contact from settings
+        // Fetch WhatsApp contact from merchandise config
         try {
-          const settings = await get("/settings?key=merch.whatsapp");
-          const waNum = settings?.value || null;
+          const config = await get("/merchandise/config");
+          const waNum = config?.whatsappNumber || null;
           setWhatsappNumber(waNum);
         } catch (err) {
           console.warn("Could not fetch WhatsApp number:", err);
