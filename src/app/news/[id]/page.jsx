@@ -75,7 +75,7 @@ export default async function NewsDetail({ params }) {
               </div>
             )}
             <div className="prose max-w-none prose-sm md:prose-base">
-              <p className="text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap line-clamp-6">{item.deskripsi}</p>
+              <p className="text-xs md:text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{item.deskripsi}</p>
             </div>
             {(item.tags && item.tags.length > 0) && (
               <div className="mt-6 md:mt-8 flex flex-wrap gap-2">
