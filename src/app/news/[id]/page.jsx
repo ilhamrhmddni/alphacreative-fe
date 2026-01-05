@@ -58,7 +58,7 @@ export default async function NewsDetail({ params }) {
           <header className="mb-6 md:mb-8 border-b border-border pb-4 md:pb-6">
             <div>
               <span className="inline-block rounded-full bg-primary/10 px-2 py-1 text-xs font-medium text-primary mb-3">{(item.tags && item.tags[0]) || 'Berita'}</span>
-              <h1 className="text-2xl md:text-3xl font-bold leading-snug line-clamp-3">{item.title}</h1>
+              <h1 className="text-2xl md:text-3xl font-bold leading-snug line-clamp-2">{item.title}</h1>
             </div>
             <div className="mt-3 text-xs md:text-sm text-muted-foreground/75 flex flex-wrap items-center gap-2 md:gap-4">
               <span>Dipublikasikan {formatDate(item.tanggal || item.date || item.createdAt)}</span>
