@@ -46,7 +46,7 @@ const MENU_SECTIONS = [
       },
       {
         href: "/dashboard/sub-events",
-        label: "Sub Event",
+        label: "Kategori Event",
         roles: ["admin", "operator"],
         icon: CalendarPlus,
       },

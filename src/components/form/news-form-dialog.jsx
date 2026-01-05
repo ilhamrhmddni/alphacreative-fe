@@ -306,7 +306,7 @@ export default function NewsFormDialog({
               type="file"
               accept="image/*"
               onChange={handlePhotoChange}
-              className="block w-full cursor-pointer text-xs file:mr-3 file:rounded-md file:border file:bg-card file:px-3 file:py-1.5 file:text-xs file:font-medium file:hover:bg-muted sm:text-sm"
+              className="block w-full cursor-pointer text-xs text-foreground file:mr-3 file:rounded-md file:border file:border-border file:bg-background file:text-foreground file:px-3 file:py-1.5 file:text-xs file:font-medium file:hover:bg-accent sm:text-sm"
               disabled={isBusy}
             />
 

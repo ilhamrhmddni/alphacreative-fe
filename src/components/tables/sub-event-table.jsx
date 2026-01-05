@@ -45,7 +45,7 @@ export function SubEventsTable({
   if (!hasData) {
     return (
       <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-        Belum ada sub event. Tambahkan kategori pada event untuk menampilkan data di sini.
+        Belum ada kategori. Tambahkan kategori pada event untuk menampilkan data di sini.
       </div>
     );
   }
@@ -153,7 +153,7 @@ export function SubEventsTable({
               <TableRow className="text-xs font-semibold tracking-wide text-left text-muted-foreground uppercase border-b bg-muted">
                 <TableHead className="px-4 py-3 text-center w-12">No</TableHead>
                 <TableHead className="px-4 py-3 text-left w-[28%]">
-                  Sub Event
+                  Kategori
                 </TableHead>
                 <TableHead className="px-4 py-3 text-left w-[32%]">
                   Event Induk
