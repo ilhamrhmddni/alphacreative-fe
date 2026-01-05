@@ -64,7 +64,7 @@ function EventDetailDialog({ event, open, onOpenChange }) {
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Tanggal</p>
                 <p className="text-sm font-semibold text-foreground">
-                  {event.tanggalMulai ? formatDate(event.tanggalMulai) : "Belum ditentukan"}
+                  {event.tanggalEvent ? formatDate(event.tanggalEvent) : "Belum ditentukan"}
                 </p>
               </div>
             </div>
@@ -74,7 +74,7 @@ function EventDetailDialog({ event, open, onOpenChange }) {
               <div>
                 <p className="text-xs font-medium text-muted-foreground">Lokasi</p>
                 <p className="text-sm font-semibold text-foreground">
-                  {event.lokasi || "Belum ditentukan"}
+                  {event.tempatEvent || "Belum ditentukan"}
                 </p>
               </div>
             </div>
@@ -141,11 +141,11 @@ function EventDetailDialog({ event, open, onOpenChange }) {
           )}
 
           {/* Description */}
-          {event.deskripsi && (
+          {event.deskripsiEvent && (
             <div>
               <p className="text-sm font-semibold text-foreground mb-2">Deskripsi</p>
               <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                {event.deskripsi}
+                {event.deskripsiEvent}
               </p>
             </div>
           )}
