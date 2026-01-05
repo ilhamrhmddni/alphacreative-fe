@@ -53,8 +53,9 @@ export default function BeritaPage() {
     try {
       setLoading(true);
       setError("");
-      const data = await get("/berita");
-      setNews(Array.isArray(data) ? data : []);
+      const response = await get("/berita");
+      const beritaData = response?.data || response;
+      setNews(Array.isArray(beritaData) ? beritaData : []);
     } catch (err) {
       console.error(err);
       setError(err.message || "Gagal memuat berita");
