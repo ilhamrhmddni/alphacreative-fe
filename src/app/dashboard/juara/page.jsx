@@ -7,6 +7,8 @@ import { PlusCircle } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { del, get, post, put } from "@/lib/api";
 import { useToast } from "@/components/ui/toast-provider";
+import PageContainer from "@/components/layout/page-container";
+import PageHeader from "@/components/layout/page-header";
 
 import {
   Card,
@@ -481,48 +483,22 @@ export default function JuaraPage() {
     Boolean(filterText) || eventFilter !== "all" || rankFilter !== "all";
 
   return (
-    <div className="min-h-screen">
-      <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
-        <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-          <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold text-foreground sm:text-lg">
-                  {isParticipant ? "Pencapaian Tim Saya" : "Data Juara"}
-                </CardTitle>
-                <CardDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">
-                  {isParticipant
-                    ? participantAwards > 0
-                      ? `${participantAwards} penghargaan untuk tim Anda`
-                      : "Belum ada penghargaan. Tetap semangat!"
-                    : totalJuara > 0
-                    ? `${totalJuara} penghargaan dicatat pada ${uniqueEvents} event`
-                    : "Belum ada data juara. Tambahkan hasil lomba atau pertandingan."}
-                </CardDescription>
-              </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                {isParticipant ? (
-                  <>
-                    <StatPill label="Penghargaan" value={participantAwards} />
-                    <StatPill
-                      label="Event"
-                      value={participantEvents}
-                      color="emerald"
-                    />
-                  </>
-                ) : (
-                  <>
-                    <StatPill label="Total" value={totalJuara} />
-                    <StatPill label="Event" value={uniqueEvents} color="emerald" />
-                    <StatPill label="Kategori terisi" value={kategoriCount} color="amber" />
-                    <StatPill label="Tim menang" value={pesertaMenang} />
-                  </>
-                )}
-              </div>
-            </div>
-          </CardHeader>
+    <PageContainer>
+      <PageHeader
+        title={isParticipant ? "Pencapaian Tim Saya" : "Data Juara"}
+        description={
+          isParticipant
+            ? participantAwards > 0
+              ? `${participantAwards} penghargaan untuk tim Anda`
+              : "Belum ada penghargaan. Tetap semangat!"
+            : totalJuara > 0
+            ? `${totalJuara} penghargaan dicatat pada ${uniqueEvents} event`
+            : "Belum ada data juara. Tambahkan hasil lomba atau pertandingan."
+        }
+      />
 
-          <CardContent className="space-y-4 px-4 py-4 sm:px-6 sm:py-5">
+      <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+        <CardContent className="space-y-4 px-4 py-4 sm:px-6 sm:py-5">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div className="flex w-full flex-col gap-3">
                 <div className="w-full">
@@ -617,7 +593,7 @@ export default function JuaraPage() {
             />
           </CardContent>
         </Card>
-      </main>
+      </PageContainer>
 
       {canManage && (
         <JuaraFormDialog
