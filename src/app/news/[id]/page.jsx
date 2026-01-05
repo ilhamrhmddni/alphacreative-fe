@@ -8,26 +8,8 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Home } from "lucide-react";
 
-export const revalidate = 60; // ISR: revalidate every 60 seconds
-
-// Generate static params - fetch recent berita IDs to pre-generate pages
-export async function generateStaticParams() {
-  try {
-    const apiUrl = "http://127.0.0.1:4000/api"; // Use localhost directly
-    const res = await fetch(`${apiUrl}/berita?limit=20`, { 
-      next: { revalidate: 3600 } // Cache for 1 hour in build
-    });
-    if (!res.ok) return [];
-    
-    const data = await res.json();
-    const berita = data.data || data;
-    return berita.slice(0, 10).map((item) => ({ id: String(item.id) }));
-  } catch (err) {
-    console.error("Error generating static params:", err.message);
-    // Return empty to allow on-demand rendering for other IDs
-    return [];
-  }
-}
+// Treat as dynamic route - always server-render on demand
+export const dynamic = "force-dynamic";
 
 export default async function NewsDetail({ params }) {
   const routeParams = await params;
@@ -35,9 +17,10 @@ export default async function NewsDetail({ params }) {
   let item = null;
   
   try {
-    const apiUrl = "http://127.0.0.1:4000/api"; // Use localhost for server-side fetch
+    // Fetch from public API URL - works with nginx proxy
+    const apiUrl = "https://alphacreativespace.com/api";
     const res = await fetch(`${apiUrl}/berita/${id}`, { 
-      next: { revalidate: 60 }, // Revalidate every 60 seconds for ISR
+      next: { revalidate: 60 },
       headers: { 'Accept': 'application/json' }
     });
     if (res.ok) {
