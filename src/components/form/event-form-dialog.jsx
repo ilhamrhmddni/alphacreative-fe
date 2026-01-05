@@ -55,6 +55,7 @@ function createInitialForm(initialData) {
     photoPath: stringOrEmpty(initialData?.photoPath),
     kuota: stringOrEmpty(initialData?.kuota),
     biaya: stringOrEmpty(initialData?.biaya),
+    linkPeraturan: stringOrEmpty(initialData?.linkPeraturan),
   };
 }
 
@@ -134,6 +135,7 @@ export default function EventFormDialog({
         photoPath: photoPath || null,
         kuota: numberFromValue(form.kuota),
         biaya: numberFromValue(form.biaya),
+        linkPeraturan: toNullableText(form.linkPeraturan),
       };
 
       await onSubmit(payload);
@@ -215,6 +217,22 @@ export default function EventFormDialog({
                 rows={3}
                 placeholder="Tuliskan deskripsi singkat event…"
                 className="placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border resize-none"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs sm:text-sm font-medium text-foreground">
+                Link Peraturan{" "}
+                <span className="text-[10px] sm:text-xs text-muted-foreground">
+                  (Opsional)
+                </span>
+              </label>
+              <Input
+                type="url"
+                value={form.linkPeraturan}
+                onChange={(e) => handleChange("linkPeraturan", e.target.value)}
+                placeholder="https://... (Link peraturan atau panduan event)"
+                className="h-9 placeholder:text-muted-foreground text-xs sm:text-sm rounded-md border-border"
               />
             </div>
           </div>

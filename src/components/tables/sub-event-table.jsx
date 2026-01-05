@@ -103,7 +103,7 @@ export function SubEventsTable({
                     size="icon"
                     variant="dark"
                     className="h-7 w-7 rounded-full"
-                    aria-label={`Edit sub event ${item.name}`}
+                    aria-label={`Edit kategori ${item.name}`}
                     onClick={() => onEdit?.(item)}
                   >
                     <Pencil className="h-3 w-3" />
@@ -115,7 +115,7 @@ export function SubEventsTable({
                         size="icon"
                         variant="dark"
                         className="h-7 w-7 rounded-full"
-                        aria-label={`Hapus sub event ${item.name}`}
+                        aria-label={`Hapus kategori ${item.name}`}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <Trash2 className="h-3 w-3" />
@@ -123,9 +123,9 @@ export function SubEventsTable({
                     </AlertDialogTrigger>
                     <AlertDialogContent className="rounded-xl bg-card border border-border">
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Hapus sub event?</AlertDialogTitle>
+                        <AlertDialogTitle>Hapus kategori?</AlertDialogTitle>
                         <AlertDialogDescription className="text-sm text-muted-foreground">
-                          Sub event <b>{item.name}</b> dari event {item.eventName || "-"} akan dihapus permanen.
+                          Kategori <b>{item.name}</b> dari event {item.eventName || "-"} akan dihapus permanen.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
@@ -226,7 +226,7 @@ export function SubEventsTable({
                           size="icon"
                           variant="dark"
                           className="h-8 w-8 rounded-full"
-                          aria-label={`Edit sub event ${item.name}`}
+                          aria-label={`Edit kategori ${item.name}`}
                           onClick={() => onEdit?.(item)}
                         >
                           <Pencil className="h-4 w-4" />
@@ -238,7 +238,7 @@ export function SubEventsTable({
                               size="icon"
                               variant="dark"
                               className="h-8 w-8 rounded-full"
-                              aria-label={`Hapus sub event ${item.name}`}
+                              aria-label={`Hapus kategori ${item.name}`}
                               onClick={(e) => e.stopPropagation()}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -246,9 +246,9 @@ export function SubEventsTable({
                           </AlertDialogTrigger>
                           <AlertDialogContent className="rounded-xl bg-card border border-border">
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Hapus sub event?</AlertDialogTitle>
+                              <AlertDialogTitle>Hapus kategori?</AlertDialogTitle>
                               <AlertDialogDescription className="text-sm text-muted-foreground">
-                                Sub event <b>{item.name}</b> dari event {item.eventName || "-"} akan dihapus permanen.
+                                Kategori <b>{item.name}</b> dari event {item.eventName || "-"} akan dihapus permanen.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
