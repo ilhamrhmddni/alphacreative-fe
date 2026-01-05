@@ -593,18 +593,18 @@ export default function JuaraPage() {
             />
           </CardContent>
         </Card>
-      </PageContainer>
 
-      {canManage && (
-        <JuaraFormDialog
-          open={dialogOpen}
-          onOpenChange={setDialogOpen}
-          initialData={editingJuara}
-          events={events}
-          peserta={peserta}
-          onSubmit={handleSubmitForm}
-        />
-      )}
+        {canManage && (
+          <JuaraFormDialog
+            open={dialogOpen}
+            onOpenChange={setDialogOpen}
+            initialData={editingJuara}
+            events={events}
+            peserta={peserta}
+            onSubmit={handleSubmitForm}
+          />
+        )}
+      </PageContainer>
     </div>
   );
 }
