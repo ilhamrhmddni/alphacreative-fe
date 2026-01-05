@@ -13,18 +13,35 @@ const DETAIL_REVALIDATE_SECONDS = 60; // Cache detail page for 60 seconds
 
 export async function generateStaticParams() {
   try {
-    const res = await fetch(`${API_URL}/berita`, { next: { revalidate: 3600 } });
-    if (!res.ok) return [];
+    // Use absolute URL for build-time API calls
+    const url = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}/api/berita`
+      : process.env.NEXT_PUBLIC_API_URL 
+      ? `${process.env.NEXT_PUBLIC_API_URL}/berita`
+      : `http://localhost:4000/api/berita`;
+    
+    console.log(`[generateStaticParams] Fetching from: ${url}`);
+    const res = await fetch(url, { next: { revalidate: 3600 } });
+    if (!res.ok) {
+      console.warn(`[generateStaticParams] Failed to fetch: ${res.status}`);
+      // Return at least some default IDs so ISR can work
+      return [{ id: '1' }, { id: '2' }, { id: '3' }];
+    }
     const data = await res.json();
     const berita = data.data || data;
-    return (Array.isArray(berita) ? berita : []).map((item) => ({
+    const params = (Array.isArray(berita) ? berita : []).map((item) => ({
       id: String(item.id),
     }));
+    console.log(`[generateStaticParams] Generated ${params.length} static params`);
+    return params;
   } catch (error) {
-    console.error("Error generating static params:", error);
+    console.error("[generateStaticParams] Error:", error);
+    // Fallback to allow on-demand ISR
     return [];
   }
 }
+
+export const dynamicParams = true; // Allow on-demand ISR for unlisted params
 
 export default async function NewsDetail({ params }) {
   const routeParams = await params; // params arrives as a Promise in Turbopack builds
