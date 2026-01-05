@@ -13,6 +13,11 @@ export const revalidate = 0; // Don't cache - always fetch fresh
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 
+// Generate static params - return empty array to allow all other params to be rendered on demand
+export async function generateStaticParams() {
+  return [];
+}
+
 export default async function NewsDetail({ params }) {
   const routeParams = await params; // params arrives as a Promise in Turbopack builds
   const { id } = routeParams;
