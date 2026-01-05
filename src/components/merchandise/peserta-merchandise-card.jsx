@@ -31,9 +31,6 @@ export function PesertaMerchandiseCard({ item, photo, priceLabel, stockLabel, st
           <h3 className="text-sm font-semibold leading-tight text-foreground line-clamp-2">
             {item.name}
           </h3>
-          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
-            {item.description || "-"}
-          </p>
         </div>
 
         {/* Price & Stock */}
