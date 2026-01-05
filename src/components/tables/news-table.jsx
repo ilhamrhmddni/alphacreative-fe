@@ -88,13 +88,13 @@ export function NewsTable({
               )}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">{news.deskripsi}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2">{news.deskripsi}</p>
             {Array.isArray(news.tags) && news.tags.length > 0 && (
-              <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground">
+              <div className="flex flex-wrap gap-1 text-[11px] text-muted-foreground line-clamp-1">
                 {news.tags.map((tag) => (
                   <span
                     key={tag}
-                    className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium"
+                    className="rounded-full border border-border bg-muted px-2 py-0.5 text-[11px] font-medium whitespace-nowrap"
                   >
                     #{tag}
                   </span>
