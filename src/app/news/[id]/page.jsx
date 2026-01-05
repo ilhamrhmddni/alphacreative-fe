@@ -8,7 +8,6 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Home } from "lucide-react";
 
-// Treat as dynamic route - always server-render on demand
 export const dynamic = "force-dynamic";
 
 export default async function NewsDetail({ params }) {
@@ -17,18 +16,23 @@ export default async function NewsDetail({ params }) {
   let item = null;
   
   try {
-    // Fetch from public API URL - works with nginx proxy
-    const apiUrl = "https://alphacreativespace.com/api";
-    const res = await fetch(`${apiUrl}/berita/${id}`, { 
-      next: { revalidate: 60 },
-      headers: { 'Accept': 'application/json' }
+    // Try localhost first (internal network), fallback to public URL
+    let apiUrl = "http://localhost:4000/api";
+    let res = await Promise.race([
+      fetch(`${apiUrl}/berita/${id}`, {  headers: { 'Accept': 'application/json' } }),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+    ]).catch(async () => {
+      // Fallback to public URL if localhost fails
+      apiUrl = "https://alphacreativespace.com/api";
+      return fetch(`${apiUrl}/berita/${id}`, { headers: { 'Accept': 'application/json' } });
     });
-    if (res.ok) {
+    
+    if (res && res.ok) {
       const data = await res.json();
       item = data;
     }
   } catch (err) {
-    console.error("Error fetching berita detail:", err.message);
+    console.error("[news/[id]] Error fetching berita:", err.message);
   }
 
   if (!item) {
