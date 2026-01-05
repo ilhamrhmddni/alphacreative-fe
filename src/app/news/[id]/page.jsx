@@ -11,6 +11,21 @@ import { ArrowLeft, Home } from "lucide-react";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const DETAIL_REVALIDATE_SECONDS = 60; // Cache detail page for 60 seconds
 
+export async function generateStaticParams() {
+  try {
+    const res = await fetch(`${API_URL}/berita`, { next: { revalidate: 3600 } });
+    if (!res.ok) return [];
+    const data = await res.json();
+    const berita = data.data || data;
+    return (Array.isArray(berita) ? berita : []).map((item) => ({
+      id: String(item.id),
+    }));
+  } catch (error) {
+    console.error("Error generating static params:", error);
+    return [];
+  }
+}
+
 export default async function NewsDetail({ params }) {
   const routeParams = await params; // params arrives as a Promise in Turbopack builds
   const { id } = routeParams;
