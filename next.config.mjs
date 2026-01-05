@@ -13,4 +13,8 @@ export default {
   },
   compress: true,
   productionBrowserSourceMaps: false,
+  experimental: {
+    dynamicIO: true,
+    isrMemoryCacheSize: 0, // Disable ISR cache
+  },
 };
