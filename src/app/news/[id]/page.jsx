@@ -8,26 +8,18 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Home } from "lucide-react";
 
+export const dynamic = "force-dynamic"; // Treat as dynamic route - fetch on demand
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
 const DETAIL_REVALIDATE_SECONDS = 60; // Cache detail page for 60 seconds
-
-// Make this route dynamic to avoid requiring all params at build time
-export const dynamic = 'force-dynamic';
 
 export default async function NewsDetail({ params }) {
   const routeParams = await params; // params arrives as a Promise in Turbopack builds
   const { id } = routeParams;
   let item = null;
   try {
-    // Use cache: 'no-cache' with force-dynamic for dynamic rendering
-    const res = await fetch(`${API_URL}/berita/${id}`, { 
-      cache: 'no-cache'
-    });
-    if (res.ok) {
-      item = await res.json();
-    } else {
-      console.error(`API returned ${res.status} for berita/${id}`);
-    }
+    const res = await fetch(`${API_URL}/berita/${id}`, { next: { revalidate: DETAIL_REVALIDATE_SECONDS } });
+    if (res.ok) item = await res.json();
   } catch (err) {
     console.error("Error fetching berita detail:", err);
   }
