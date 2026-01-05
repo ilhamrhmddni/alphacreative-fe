@@ -19,8 +19,15 @@ export default async function NewsDetail({ params }) {
   const { id } = routeParams;
   let item = null;
   try {
-    const res = await fetch(`${API_URL}/berita/${id}`, { next: { revalidate: DETAIL_REVALIDATE_SECONDS } });
-    if (res.ok) item = await res.json();
+    // Use cache: 'no-cache' with force-dynamic for dynamic rendering
+    const res = await fetch(`${API_URL}/berita/${id}`, { 
+      cache: 'no-cache'
+    });
+    if (res.ok) {
+      item = await res.json();
+    } else {
+      console.error(`API returned ${res.status} for berita/${id}`);
+    }
   } catch (err) {
     console.error("Error fetching berita detail:", err);
   }
