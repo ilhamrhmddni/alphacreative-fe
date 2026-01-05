@@ -141,7 +141,7 @@ export function NewsListing({ initialData, defaultLimit }) {
                       <span>{item?.date ? formatDate(item.date) : "TBA"}</span>
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold leading-snug text-foreground transition-colors group-hover:text-primary">
+                      <h2 className="text-lg font-semibold leading-snug text-foreground transition-colors group-hover:text-primary line-clamp-2">
                         {item.title || "Tanpa Judul"}
                       </h2>
                       <p className="mt-2 text-sm text-muted-foreground line-clamp-3">

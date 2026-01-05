@@ -92,7 +92,6 @@ export function NewsTable({
                 <TableHead className="w-[26%] px-4 py-3">Berita</TableHead>
                 <TableHead className="w-[12%] px-4 py-3">Tanggal</TableHead>
                 <TableHead className="w-[20%] px-4 py-3">Event</TableHead>
-                <TableHead className="w-[26%] px-4 py-3">Deskripsi</TableHead>
                 <TableHead className="w-[8%] px-4 py-3">Tag</TableHead>
                 <TableHead className="w-[8%] px-4 py-3 text-center">
                   Foto
@@ -135,9 +134,6 @@ export function NewsTable({
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
-                  </TableCell>
-                  <TableCell className="px-4 py-3 align-top text-xs text-muted-foreground">
-                    <p className="line-clamp-3">{news.deskripsi}</p>
                   </TableCell>
                   <TableCell className="px-4 py-3 align-top text-xs text-muted-foreground">
                     {Array.isArray(news.tags) && news.tags.length > 0 ? (
