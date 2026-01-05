@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { Calendar, Users, CheckCircle2, Clock, ArrowRight, MapPin, Trophy, Tag, AlertCircle, X, Info } from "lucide-react";
+import { Calendar, Users, CheckCircle2, Clock, ArrowRight, MapPin, Trophy, Tag, AlertCircle, X, Info, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatDate, formatCurrency } from "@/lib/formatters";
@@ -117,6 +117,25 @@ function EventDetailDialog({ event, open, onOpenChange }) {
                     )}
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+
+          {/* Rules/Regulations Link */}
+          {event.linkPeraturan && (
+            <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+              <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
+              <div className="flex-1">
+                <p className="text-xs font-medium text-blue-700 mb-2">Peraturan Event</p>
+                <a
+                  href={event.linkPeraturan}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  Lihat Peraturan PDF
+                  <ArrowRight className="h-4 w-4" />
+                </a>
               </div>
             </div>
           )}
