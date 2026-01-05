@@ -10,7 +10,7 @@ export function GallerySection({ items = [] }) {
     ? items
         .map((item, index) => ({
           id: item.id ?? index,
-          title: item.title || `Foto ${index + 1}`,
+          title: item.title || "Foto",
           caption: item.caption || "",
           photoUrl: resolveMediaUrl(item.photoPath) || item.photoPath || "",
         }))
