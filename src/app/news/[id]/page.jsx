@@ -11,8 +11,6 @@ import { ArrowLeft, Home } from "lucide-react";
 export const dynamic = "force-dynamic"; // Treat as dynamic route - fetch on demand
 export const revalidate = 0; // Don't cache - always fetch fresh
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-
 // Generate static params - return empty array to allow all other params to be rendered on demand
 export async function generateStaticParams() {
   return [];
@@ -22,11 +20,20 @@ export default async function NewsDetail({ params }) {
   const routeParams = await params; // params arrives as a Promise in Turbopack builds
   const { id } = routeParams;
   let item = null;
+  
   try {
-    const res = await fetch(`${API_URL}/berita/${id}`, { cache: 'no-store' });
+    // Use internal API URL for server-side fetch to avoid proxy issues
+    const apiUrl = process.env.INTERNAL_API_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+    const res = await fetch(`${apiUrl}/berita/${id}`, { 
+      cache: 'no-store',
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
     if (res.ok) item = await res.json();
+    else console.error(`API responded with status ${res.status}`);
   } catch (err) {
-    console.error("Error fetching berita detail:", err);
+    console.error("Error fetching berita detail:", err.message);
   }
 
   if (!item) {
