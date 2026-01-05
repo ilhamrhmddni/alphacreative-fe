@@ -9,16 +9,16 @@ import { cn } from "@/lib/utils";
 import { ArrowLeft, Home } from "lucide-react";
 
 export const dynamic = "force-dynamic"; // Treat as dynamic route - fetch on demand
+export const revalidate = 0; // Don't cache - always fetch fresh
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
-const DETAIL_REVALIDATE_SECONDS = 60; // Cache detail page for 60 seconds
 
 export default async function NewsDetail({ params }) {
   const routeParams = await params; // params arrives as a Promise in Turbopack builds
   const { id } = routeParams;
   let item = null;
   try {
-    const res = await fetch(`${API_URL}/berita/${id}`, { next: { revalidate: DETAIL_REVALIDATE_SECONDS } });
+    const res = await fetch(`${API_URL}/berita/${id}`, { cache: 'no-store' });
     if (res.ok) item = await res.json();
   } catch (err) {
     console.error("Error fetching berita detail:", err);
