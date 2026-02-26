@@ -107,7 +107,7 @@ export function PesertaTable({
                     {peserta.detailPeserta.length} anggota
                   </Badge>
                 ) : (
-                  <Badge>Belum isi anggota</Badge>
+                  <Badge>0 anggota</Badge>
                 )}
               </div>
             </div>

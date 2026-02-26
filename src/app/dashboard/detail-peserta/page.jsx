@@ -28,6 +28,9 @@ import {
 import { DetailPesertaTable } from "@/components/tables/detail-peserta-table";
 import DetailPesertaFormDialog from "@/components/form/detail-peserta-form-dialog";
 import { RegistrationProgress } from "@/components/peserta/registration-progress";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export default function DetailPesertaPage() {
   const router = useRouter();
@@ -47,6 +50,7 @@ export default function DetailPesertaPage() {
 
   const [filterText, setFilterText] = useState("");
   const [eventFilter, setEventFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -143,13 +147,20 @@ export default function DetailPesertaPage() {
       );
     }
 
+    // Category filter
+    if (categoryFilter !== "all") {
+      data = data.filter(
+        (item) => String(item.peserta?.eventCategoryId) === categoryFilter
+      );
+    }
+
     // Team filter
     if (teamFilter !== "all") {
       data = data.filter((item) => String(item.pesertaId) === teamFilter);
     }
 
     setFiltered(data);
-  }, [enrichedDetails, filterText, eventFilter, teamFilter]);
+  }, [enrichedDetails, filterText, eventFilter, categoryFilter, teamFilter]);
 
   const canManage = user?.role === "admin" || user?.role === "operator";
 
@@ -184,16 +195,33 @@ export default function DetailPesertaPage() {
   const teamFilterOptions = useMemo(() => {
     const map = new Map();
     enrichedDetails.forEach((detail) => {
-      if (detail.pesertaId) {
-        map.set(
-          String(detail.pesertaId),
-          detail.peserta?.namaTim || "Tim tidak diketahui"
-        );
-      }
+      if (!detail.pesertaId) return;
+      if (eventFilter !== "all" && String(detail.peserta?.event?.id) !== eventFilter) return;
+      if (categoryFilter !== "all" && String(detail.peserta?.eventCategoryId) !== categoryFilter) return;
+      map.set(
+        String(detail.pesertaId),
+        detail.peserta?.namaTim || "Tim tidak diketahui"
+      );
     });
     return Array.from(map.entries()).map(([value, label]) => ({
       value,
       label,
+    }));
+  }, [enrichedDetails, eventFilter, categoryFilter]);
+
+  const categoryOptions = useMemo(() => {
+    const map = new Map();
+    enrichedDetails.forEach((detail) => {
+      const cat = detail.peserta?.eventCategory;
+      const eventId = String(detail.peserta?.event?.id || "");
+      if (cat?.id) {
+        map.set(String(cat.id), { label: cat.name || "Tanpa nama", eventId });
+      }
+    });
+    return Array.from(map.entries()).map(([value, { label, eventId }]) => ({
+      value,
+      label,
+      eventId,
     }));
   }, [enrichedDetails]);
 
@@ -276,7 +304,9 @@ export default function DetailPesertaPage() {
   }
 
   const filtersActive =
-    Boolean(filterText) || eventFilter !== "all" || teamFilter !== "all";
+    Boolean(filterText) || eventFilter !== "all" || categoryFilter !== "all" || teamFilter !== "all";
+
+  const { pageItems, startIndex, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
 
   // For participants, show progress view
   if (isParticipant) {
@@ -286,6 +316,7 @@ export default function DetailPesertaPage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto max-w-4xl px-3 py-4 sm:px-4">
+          <PageHeader title="Detail Peserta" description="Pantau progres pendaftaran dan anggota tim Anda." className="mb-4" />
           <RegistrationProgress
             pesertaData={userPeserta}
             detailPesertaData={userDetails}
@@ -334,6 +365,7 @@ export default function DetailPesertaPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+        <PageHeader title="Detail Peserta" description="Kelola data anggota tim dari setiap peserta yang terdaftar." className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -369,7 +401,7 @@ export default function DetailPesertaPage() {
                 </div>
 
                 <div className="flex w-full flex-wrap gap-2">
-                  <Select value={eventFilter} onValueChange={setEventFilter}>
+                  <Select value={eventFilter} onValueChange={(v) => { setEventFilter(v); setCategoryFilter("all"); setTeamFilter("all"); }}>
                     <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua event" />
                     </SelectTrigger>
@@ -383,9 +415,38 @@ export default function DetailPesertaPage() {
                     </SelectContent>
                   </Select>
 
-                  <Select value={teamFilter} onValueChange={setTeamFilter}>
+                  {categoryOptions.length > 0 && (
+                    <Select
+                      value={categoryFilter}
+                      disabled={eventFilter === "all"}
+                      onValueChange={(v) => { setCategoryFilter(v); setTeamFilter("all"); }}
+                    >
+                      <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[160px] sm:text-sm">
+                        <SelectValue placeholder={eventFilter === "all" ? "Pilih event dulu" : "Semua kategori"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                        <SelectItem value="all">Semua kategori</SelectItem>
+                        {categoryOptions
+                          .filter((opt) => eventFilter === "all" || opt.eventId === eventFilter)
+                          .map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <Select
+                    value={teamFilter}
+                    disabled={eventFilter === "all" || categoryFilter === "all"}
+                    onValueChange={setTeamFilter}
+                  >
                     <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[160px] sm:text-sm">
-                      <SelectValue placeholder="Semua tim" />
+                      <SelectValue placeholder={
+                        eventFilter === "all" ? "Pilih event dulu" :
+                        categoryFilter === "all" ? "Pilih kategori dulu" : "Semua tim"
+                      } />
                     </SelectTrigger>
                     <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua tim</SelectItem>
@@ -405,6 +466,7 @@ export default function DetailPesertaPage() {
                       onClick={() => {
                         setFilterText("");
                         setEventFilter("all");
+                        setCategoryFilter("all");
                         setTeamFilter("all");
                       }}
                     >
@@ -435,11 +497,20 @@ export default function DetailPesertaPage() {
             )}
 
             <DetailPesertaTable
-              items={filtered}
+              items={pageItems}
               loading={loading}
               canEdit={canManage}
               onEdit={handleEdit}
               onDelete={handleDelete}
+              startIndex={startIndex}
+            />
+            <PaginationBar
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
           </CardContent>
         </Card>

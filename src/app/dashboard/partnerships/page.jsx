@@ -14,6 +14,8 @@ import { PartnershipTable } from "@/components/tables/partnership-table";
 import PartnershipFormDialog from "@/components/form/partnership-form-dialog";
 import { get, post, put, del } from "@/lib/api";
 import { resolveMediaUrl } from "@/lib/utils";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 function sortItems(items) {
   if (!Array.isArray(items)) return [];
@@ -37,6 +39,7 @@ export default function PartnershipsPage() {
   const sliderRef = useRef(null);
 
   const canManage = user?.role === "admin" || user?.role === "operator";
+  const { pageItems, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(items);
 
   const fetchData = useCallback(async () => {
     if (!canManage) return;
@@ -295,11 +298,19 @@ export default function PartnershipsPage() {
         </CardHeader>
         <CardContent className="px-4 py-5 sm:px-6">
           <PartnershipTable
-            items={items}
+            items={pageItems}
             loading={loading}
             canEdit={canManage}
             onEdit={handleEdit}
             onDelete={handleDelete}
+          />
+          <PaginationBar
+            total={total}
+            pageSize={pageSize}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={goToPage}
+            onPageSizeChange={setPageSize}
           />
         </CardContent>
       </Card>

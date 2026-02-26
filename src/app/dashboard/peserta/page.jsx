@@ -29,12 +29,14 @@ import {
 import { PesertaTable } from "@/components/tables/peserta-table";
 import PesertaFormDialog from "@/components/form/peserta-form-dialog";
 import DetailPesertaFormDialog from "@/components/form/detail-peserta-form-dialog";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 const STATUS_FILTERS = [
-  { value: "all", label: "Semua status" },
-  { value: "juara", label: "Sudah juara" },
-  { value: "belum", label: "Belum juara" },
-  { value: "lengkap", label: "Profil lengkap" },
+  { value: "all", label: "Semua anggota" },
+  { value: "sudah_isi", label: "Sudah isi anggota" },
+  { value: "belum_isi", label: "Belum isi anggota" },
 ];
 
 export default function PesertaPage() {
@@ -57,6 +59,8 @@ export default function PesertaPage() {
   const [filterText, setFilterText] = useState("");
   const [eventFilter, setEventFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [approvalFilter, setApprovalFilter] = useState("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPeserta, setEditingPeserta] = useState(null);
@@ -129,6 +133,11 @@ export default function PesertaPage() {
     }
   }, [operatorFocusEventId, isOperator]);
 
+  // Reset category filter saat event berubah
+  useEffect(() => {
+    setCategoryFilter("all");
+  }, [eventFilter]);
+
   useEffect(() => {
     let data = [...peserta];
 
@@ -152,26 +161,64 @@ export default function PesertaPage() {
       data = data.filter((item) => String(item.eventId) === eventFilter);
     }
 
-    // Status filter - champion/pending/complete status
-    if (statusFilter === "juara") {
-      data = data.filter((item) => (item.juara?.length || 0) > 0);
-    } else if (statusFilter === "belum") {
-      data = data.filter((item) => (item.juara?.length || 0) === 0);
-    } else if (statusFilter === "lengkap") {
+    // Category / sub-event filter
+    if (categoryFilter !== "all") {
+      data = data.filter(
+        (item) => String(item.eventCategoryId) === categoryFilter
+      );
+    }
+
+    // Status filter - anggota sudah/belum isi
+    if (statusFilter === "sudah_isi") {
       data = data.filter((item) => (item.detailPeserta?.length || 0) > 0);
+    } else if (statusFilter === "belum_isi") {
+      data = data.filter((item) => (item.detailPeserta?.length || 0) === 0);
+    }
+
+    // Approval / konfirmasi filter
+    if (approvalFilter !== "all") {
+      data = data.filter((item) => item.status === approvalFilter);
     }
 
     setFiltered(data);
-  }, [peserta, filterText, eventFilter, statusFilter]);
+  }, [peserta, filterText, eventFilter, categoryFilter, statusFilter, approvalFilter]);
 
   const canManage = user?.role === "admin" || user?.role === "operator";
 
+  const { pageItems, startIndex, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
+
   const totalPeserta = peserta.length;
-  const juaraCount =
-    peserta.filter((item) => (item.juara?.length || 0) > 0).length;
-  const lengkapCount =
-    peserta.filter((item) => (item.detailPeserta?.length || 0) > 0).length;
+  const sudahIsiCount = peserta.filter(
+    (item) => (item.detailPeserta?.length || 0) > 0
+  ).length;
+  const belumIsiCount = peserta.filter(
+    (item) => (item.detailPeserta?.length || 0) === 0
+  ).length;
   const eventCount = new Set(peserta.map((item) => item.eventId)).size;
+
+  // Opsi kategori/sub-event: dari event yang dipilih, atau gabungan semua event
+  const categoryOptions = useMemo(() => {
+    if (eventFilter !== "all") {
+      const selectedEvent = events.find(
+        (ev) => String(ev.id) === eventFilter
+      );
+      return (selectedEvent?.categories || []).map((cat) => ({
+        value: String(cat.id),
+        label: cat.name,
+      }));
+    }
+    const seen = new Set();
+    const opts = [];
+    events.forEach((ev) => {
+      (ev.categories || []).forEach((cat) => {
+        if (!seen.has(cat.id)) {
+          seen.add(cat.id);
+          opts.push({ value: String(cat.id), label: cat.name });
+        }
+      });
+    });
+    return opts;
+  }, [events, eventFilter]);
   
   // For participants, filter teams based on selected event
   const participantTeams = useMemo(() => {
@@ -420,12 +467,10 @@ export default function PesertaPage() {
 
 
 
-  const filtersActive =
-    Boolean(filterText) || eventFilter !== "all" || statusFilter !== "all";
-
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+        <PageHeader title="Peserta" description="Kelola tim dan anggota yang terdaftar pada event." className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -462,12 +507,8 @@ export default function PesertaPage() {
                 ) : (
                   <>
                     <StatPill label="Total" value={totalPeserta} />
-                    <StatPill label="Juara" value={juaraCount} color="amber" />
-                    <StatPill
-                      label="Profil lengkap"
-                      value={lengkapCount}
-                      color="emerald"
-                    />
+                    <StatPill label="Sudah isi" value={sudahIsiCount} color="emerald" />
+                    <StatPill label="Belum isi" value={belumIsiCount} color="amber" />
                     <StatPill label="Event" value={eventCount} color="slate" />
                   </>
                 )}
@@ -553,9 +594,29 @@ export default function PesertaPage() {
                         </SelectContent>
                       </Select>
 
+                      {categoryOptions.length > 0 && (
+                        <Select
+                          value={categoryFilter}
+                          onValueChange={setCategoryFilter}
+                          disabled={eventFilter === "all"}
+                        >
+                          <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[170px] sm:text-sm">
+                            <SelectValue placeholder={eventFilter === "all" ? "Pilih event dulu" : "Semua kategori"} />
+                          </SelectTrigger>
+                          <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                            <SelectItem value="all">Semua kategori</SelectItem>
+                            {categoryOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+
                       <Select value={statusFilter} onValueChange={setStatusFilter}>
-                        <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[150px] sm:text-sm">
-                          <SelectValue placeholder="Semua status" />
+                        <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[170px] sm:text-sm">
+                          <SelectValue placeholder="Semua anggota" />
                         </SelectTrigger>
                         <SelectContent className="rounded-md border border-border bg-card shadow-md">
                           {STATUS_FILTERS.map((option) => (
@@ -566,7 +627,19 @@ export default function PesertaPage() {
                         </SelectContent>
                       </Select>
 
-                      {filtersActive && (
+                      <Select value={approvalFilter} onValueChange={setApprovalFilter}>
+                        <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[170px] sm:text-sm">
+                          <SelectValue placeholder="Semua konfirmasi" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                          <SelectItem value="all">Semua konfirmasi</SelectItem>
+                          <SelectItem value="pending">Belum dikonfirmasi</SelectItem>
+                          <SelectItem value="approved">Sudah dikonfirmasi</SelectItem>
+                          <SelectItem value="rejected">Ditolak</SelectItem>
+                        </SelectContent>
+                      </Select>
+
+                      {(filterText || eventFilter !== "all" || categoryFilter !== "all" || statusFilter !== "all" || approvalFilter !== "all") && (
                         <Button
                           type="button"
                           variant="outline"
@@ -574,7 +647,9 @@ export default function PesertaPage() {
                           onClick={() => {
                             setFilterText("");
                             setEventFilter("all");
+                            setCategoryFilter("all");
                             setStatusFilter("all");
+                            setApprovalFilter("all");
                           }}
                         >
                           Reset
@@ -602,12 +677,21 @@ export default function PesertaPage() {
                 )}
 
                 <PesertaTable
-                  items={filtered}
+                  items={pageItems}
                   loading={loading}
                   canEdit={canManage}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   onChangeStatus={canManage ? handleUpdateStatus : undefined}
+                  startIndex={startIndex}
+                />
+                <PaginationBar
+                  total={total}
+                  pageSize={pageSize}
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={goToPage}
+                  onPageSizeChange={setPageSize}
                 />
               </>
             )}

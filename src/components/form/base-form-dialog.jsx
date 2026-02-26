@@ -73,25 +73,28 @@ export function BaseFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          {description && <DialogDescription>{description}</DialogDescription>}
+      <DialogContent className="max-w-lg rounded-xl border border-border bg-card p-0 gap-0 shadow-lg overflow-hidden sm:max-w-xl">
+        <DialogHeader className="bg-card border-b border-border px-6 pt-6 pb-4">
+          <DialogTitle className="text-base font-semibold text-foreground sm:text-lg">{title}</DialogTitle>
+          {description && <DialogDescription className="mt-1 text-xs text-muted-foreground sm:text-sm">{description}</DialogDescription>}
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {children({ form, handleChange })}
+        <form onSubmit={handleSubmit} className="flex flex-col max-h-[75vh]">
+          <div className="overflow-y-auto bg-card px-6 py-5 space-y-5">
+            {children({ form, handleChange })}
+          </div>
 
-          <div className="flex gap-2 justify-end pt-4">
+          <div className="bg-card flex gap-2 justify-end border-t border-border px-6 py-4">
             <Button
               type="button"
               variant="outline"
+              className="rounded-md text-xs sm:text-sm"
               onClick={() => onOpenChange?.(false)}
               disabled={isSubmitting || submitting}
             >
               Batal
             </Button>
-            <Button type="submit" disabled={isSubmitting || submitting}>
+            <Button type="submit" className="rounded-md text-xs sm:text-sm" disabled={isSubmitting || submitting}>
               {isSubmitting || submitting ? "Memproses..." : submitLabel}
             </Button>
           </div>

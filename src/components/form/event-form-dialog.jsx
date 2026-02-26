@@ -45,13 +45,24 @@ function toDateInputValue(dateLike) {
 
 function createInitialForm(initialData) {
   const tempat = sanitizeText(initialData?.tempatEvent);
+  const rawStatus = stringOrEmpty(initialData?.status);
+
+  // Jika status masih "open" tapi tanggal sudah lewat, default ke "closed"
+  let effectiveStatus = rawStatus;
+  if (rawStatus === "open" && initialData?.tanggalEvent) {
+    const tanggal = new Date(initialData.tanggalEvent);
+    if (!Number.isNaN(tanggal.getTime()) && tanggal < new Date()) {
+      effectiveStatus = "closed";
+    }
+  }
+
   return {
     namaEvent: stringOrEmpty(initialData?.namaEvent),
     deskripsiEvent: stringOrEmpty(initialData?.deskripsiEvent),
     tanggalEvent: toDateInputValue(initialData?.tanggalEvent),
     tempatEvent: tempat || "Balikpapan",
     venue: stringOrEmpty(initialData?.venue),
-    status: stringOrEmpty(initialData?.status),
+    status: effectiveStatus,
     photoPath: stringOrEmpty(initialData?.photoPath),
     kuota: stringOrEmpty(initialData?.kuota),
     biaya: stringOrEmpty(initialData?.biaya),
@@ -90,7 +101,17 @@ export default function EventFormDialog({
   }, [pendingFile]);
 
   function handleChange(field, value) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      // Jika tanggal diubah ke masa lalu dan status masih "open", otomatis ganti ke "closed"
+      if (field === "tanggalEvent" && value && next.status === "open") {
+        const d = new Date(value);
+        if (!Number.isNaN(d.getTime()) && d < new Date()) {
+          next.status = "closed";
+        }
+      }
+      return next;
+    });
   }
 
   function handlePhotoChange(e) {
@@ -275,19 +296,36 @@ export default function EventFormDialog({
                   (Opsional)
                 </span>
               </label>
-              <Select
-                value={form.status || ""}
-                onValueChange={(val) => handleChange("status", val)}
-              >
-                <SelectTrigger className="h-9 w-full text-xs sm:text-sm rounded-md border-border">
-                  <SelectValue placeholder="Pilih status (opsional)" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border border-border shadow-md rounded-md">
-                  <SelectItem value="open">Open</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
-                  <SelectItem value="closed">Closed</SelectItem>
-                </SelectContent>
-              </Select>
+              {(() => {
+                const isDateExpired =
+                  form.tanggalEvent
+                    ? new Date(form.tanggalEvent) < new Date()
+                    : false;
+                return (
+                  <>
+                    <Select
+                      value={form.status || ""}
+                      onValueChange={(val) => handleChange("status", val)}
+                    >
+                      <SelectTrigger className="h-9 w-full text-xs sm:text-sm rounded-md border-border">
+                        <SelectValue placeholder="Pilih status (opsional)" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border border-border shadow-md rounded-md">
+                        <SelectItem value="open" disabled={isDateExpired}>
+                          Open{isDateExpired ? " (tanggal sudah lewat)" : ""}
+                        </SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="closed">Closed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {isDateExpired && (
+                      <p className="text-[11px] text-amber-600">
+                        Tanggal event sudah terlampaui — status tidak dapat diubah menjadi Open.
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
 

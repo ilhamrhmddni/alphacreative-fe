@@ -1,53 +1,45 @@
 /**
  * @file src/hooks/usePagination.js
- * @description Hook for pagination state management
+ * @description Client-side pagination hook — slices a data array for the current page.
  */
 
-import { useState, useCallback } from "react";
+import { useState, useMemo } from "react";
+
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
 /**
- * Hook for managing pagination state
- * @param {number} initialPage - Initial page number (default: 1)
- * @param {number} pageSize - Items per page (default: 10)
- * @returns {Object} Pagination state and methods
+ * @param {Array}  data            - Full (already-filtered) data array.
+ * @param {number} defaultPageSize - Initial page size (default: 25).
  */
-export const usePagination = (initialPage = 1, pageSize = 10) => {
-  const [page, setPage] = useState(initialPage);
-  const [total, setTotal] = useState(0);
+export function usePagination(data = [], defaultPageSize = 10) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSizeState] = useState(defaultPageSize);
 
-  const totalPages = Math.ceil(total / pageSize);
+  const total = data.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const handlePageChange = useCallback((newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setPage(newPage);
-    }
-  }, [totalPages]);
+  // Clamp page automatically when data shrinks (e.g. after filtering)
+  const safePage = Math.min(currentPage, totalPages);
 
-  const handleNext = useCallback(() => {
-    handlePageChange(page + 1);
-  }, [page, handlePageChange]);
+  const pageItems = useMemo(() => {
+    const start = (safePage - 1) * pageSize;
+    return data.slice(start, start + pageSize);
+  }, [data, safePage, pageSize]);
 
-  const handlePrevious = useCallback(() => {
-    handlePageChange(page - 1);
-  }, [page, handlePageChange]);
-
-  const reset = useCallback(() => {
-    setPage(initialPage);
-  }, [initialPage]);
+  const startIndex = total === 0 ? 1 : (safePage - 1) * pageSize + 1;
 
   return {
-    page,
+    currentPage: safePage,
     pageSize,
-    total,
-    setTotal,
     totalPages,
-    handlePageChange,
-    handleNext,
-    handlePrevious,
-    reset,
-    isFirstPage: page === 1,
-    isLastPage: page === totalPages,
+    total,
+    pageItems,
+    startIndex,
+    goToPage: (page) =>
+      setCurrentPage(Math.max(1, Math.min(page, Math.max(1, Math.ceil(total / pageSize))))),
+    setPageSize: (size) => {
+      setPageSizeState(size);
+      setCurrentPage(1);
+    },
   };
-};
-
-export default usePagination;
+}

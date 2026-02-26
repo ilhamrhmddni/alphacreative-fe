@@ -186,11 +186,17 @@ export default function DetailPesertaFormDialog({
         )}
 
           <div className="space-y-2">
-            <Label className="text-xs font-medium text-foreground sm:text-sm">
-              Nama Anggota <span className="text-red-500">*</span>
-            </Label>
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-medium text-foreground sm:text-sm">
+                Nama Anggota <span className="text-red-500">*</span>
+              </Label>
+              <span className={`text-[11px] ${form.namaDetail.length >= 64 ? "text-red-500" : "text-muted-foreground"}`}>
+                {form.namaDetail.length}/64
+              </span>
+            </div>
             <Input
               required
+              maxLength={64}
               value={form.namaDetail}
               onChange={(e) => handleChange("namaDetail", e.target.value)}
               placeholder="Masukkan nama lengkap"

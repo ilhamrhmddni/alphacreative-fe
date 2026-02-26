@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NewsDetail({ params }) {
   const routeParams = await params;
-  const { id } = routeParams;
+  const { slug } = routeParams;
   let item = null;
   
   try {
@@ -26,27 +26,27 @@ export default async function NewsDetail({ params }) {
     for (const apiUrl of urls) {
       try {
         const res = await Promise.race([
-          fetch(`${apiUrl}/berita/${id}`, { headers: { 'Accept': 'application/json' } }),
+          fetch(`${apiUrl}/berita/${slug}`, { headers: { 'Accept': 'application/json' } }),
           new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 3000))
         ]);
         
         if (res && res.ok) {
           const data = await res.json();
           item = data;
-          console.log(`[news/[id]] Successfully fetched from ${apiUrl}`);
+          console.log(`[news/[slug]] Successfully fetched from ${apiUrl}`);
           break;
         }
       } catch (err) {
-        console.log(`[news/[id]] Failed with ${apiUrl}: ${err.message}`);
+        console.log(`[news/[slug]] Failed with ${apiUrl}: ${err.message}`);
         continue;
       }
     }
   } catch (err) {
-    console.error("[news/[id]] All fetch attempts failed:", err.message);
+    console.error("[news/[slug]] All fetch attempts failed:", err.message);
   }
 
   if (!item) {
-    console.error(`[news/[id]] Failed to fetch berita with id=${id}, returning notFound`);
+    console.error(`[news/[slug]] Failed to fetch berita with slug=${slug}, returning notFound`);
     return notFound();
   }
 
@@ -63,7 +63,7 @@ export default async function NewsDetail({ params }) {
             <div className="mt-3 text-xs md:text-sm text-muted-foreground/75 flex flex-wrap items-center gap-2 md:gap-4">
               <span>Dipublikasikan {formatDate(item.tanggal || item.date || item.createdAt)}</span>
               {item.event && (
-                <a href={`/events/${item.event.id}`} className="text-primary hover:underline">• Acara: {item.event.name}</a>
+                <a href={`/events/${item.event.id}`} className="text-primary hover:underline">• Acara: {item.event.namaEvent || item.event.name || "Lihat Event"}</a>
               )}
             </div>
           </header>
