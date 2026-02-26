@@ -13,6 +13,7 @@ const CLIENT_EXCERPT_LENGTH = Number.isFinite(envExcerpt) && envExcerpt >= 40 ? 
 function mapNewsItem(item) {
   return {
     id: item.id,
+    slug: item.slug || null,
     title: item.title || item.judul || "",
     excerpt: item.excerpt || (item.deskripsi ? item.deskripsi.slice(0, CLIENT_EXCERPT_LENGTH) : ""),
     date: item.date || item.tanggal || item.createdAt || null,
@@ -115,7 +116,7 @@ export function NewsListing({ initialData, defaultLimit }) {
               key={item.id ?? `news-${index}`}
               className="overflow-hidden rounded-xl border border-border bg-card transition hover:-translate-y-[2px] hover:border-primary/40 hover:shadow-md"
             >
-              <Link href={item?.id ? `/news/${item.id}` : "#"} className="flex flex-col gap-4 p-4">
+              <Link href={item?.id ? `/news/${item.slug || item.id}` : "#"} className="flex flex-col gap-4 p-4">
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-6">
                   <div className="relative h-36 w-full overflow-hidden rounded-lg border border-border bg-muted md:h-32 md:w-56">
                     {photoUrl ? (

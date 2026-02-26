@@ -6,24 +6,16 @@ import { formatDate } from "@/lib/formatters";
 import Countdown from "@/components/landing/Countdown";
 
 export function HeroSection({ heroEvent, stats }) {
-  // Gunakan heroEvent langsung jika ada, jika tidak pakai fallback
+  // Gunakan heroEvent langsung jika ada dan benar-benar unggulan
   const event = heroEvent ? {
     name: heroEvent.name || "Event Unggulan",
-    date: heroEvent.date, // jangan override! keep as-is dari backend
+    date: heroEvent.date,
     location: heroEvent.location || "-",
     stats: { participantCount: heroEvent.stats?.participantCount || 0 },
     status: heroEvent.status || "upcoming",
     isFeatured: heroEvent.isFeatured,
     categories: Array.isArray(heroEvent.categories) ? heroEvent.categories : [],
-  } : {
-    name: "Kejuaraan LKBB Nasional 2024",
-    date: new Date("2024-12-15").toISOString(), // valid ISO untuk Countdown
-    location: "Stadion Utama Gelora Bung Karno, Jakarta",
-    stats: { participantCount: 52 },
-    status: "open",
-    isFeatured: false,
-    categories: [],
-  };
+  } : null;
   
   const statData = stats || {
     totalEvents: 50,
@@ -84,58 +76,71 @@ export function HeroSection({ heroEvent, stats }) {
           </div>
 
           <div className="relative space-y-6">
-            <div className="rounded-2xl border border-border bg-card p-6 shadow-xl">
-              <div className="mb-4 flex items-center gap-2">
-                  <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-600">
-                    {event.status}
-                  </span>
-                  {event.isFeatured && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
-                      <Star className="h-3 w-3 text-yellow-500" />
-                      Unggulan
+            {event ? (
+              <>
+                <div className="rounded-2xl border border-border bg-card p-6 shadow-xl">
+                  <div className="mb-4 flex items-center gap-2">
+                    <span className="rounded-full bg-green-500/10 px-3 py-1 text-xs font-semibold text-green-600">
+                      {event.status}
                     </span>
-                  )}
-                  {!event.isFeatured && (
-                    <span className="text-xs text-muted-foreground">Event Unggulan</span>
-                  )}
+                    {event.isFeatured && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-3 py-1 text-xs font-semibold text-yellow-700">
+                        <Star className="h-3 w-3 text-yellow-500" />
+                        Unggulan
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="mb-4 text-xl font-bold">{event.name}</h3>
+
+                  <div className="mb-6 space-y-3">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Calendar className="h-4 w-4 text-primary" />
+                      {formatDate(event.date)}
+                    </div>
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <MapPin className="h-4 w-4 text-primary" />
+                      {event.location}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
+                    <div>
+                      <p className="text-2xl font-bold text-primary">{event.stats?.participantCount || 0}</p>
+                      <p className="text-xs text-muted-foreground">Tim Terdaftar</p>
+                    </div>
+                    <Button size="sm">
+                      <Link href="/events">
+                        Daftar Sekarang
+                      </Link>
+                    </Button>
+                  </div>
                 </div>
 
-              <h3 className="mb-4 text-xl font-bold">{event.name}</h3>
-
-              <div className="mb-6 space-y-3">
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <Calendar className="h-4 w-4 text-primary" />
-                  {formatDate(event.date)}
+                <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-6 shadow-xl">
+                  <p className="mb-4 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Hitung Mundur</p>
+                  <Countdown target={event.date} />
                 </div>
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <MapPin className="h-4 w-4 text-primary" />
-                  {event.location}
+              </>
+            ) : (
+              <div className="rounded-2xl border border-dashed border-border bg-card/50 p-8 shadow-xl flex flex-col items-center justify-center text-center gap-4 min-h-[320px]">
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <Star className="h-7 w-7 text-primary/50" />
                 </div>
-                {/* Kategori detail disembunyikan di hero karena kurang relevan */}
-              </div>
-
-              <div className="flex items-center justify-between rounded-lg bg-muted/50 p-4">
                 <div>
-                  <p className="text-2xl font-bold text-primary">{event.stats?.participantCount || 0}</p>
-                  <p className="text-xs text-muted-foreground">Tim Terdaftar</p>
+                  <p className="text-lg font-semibold text-foreground">Menunggu Event Unggulan</p>
+                  <p className="mt-1 text-sm text-muted-foreground max-w-xs">
+                    Belum ada event yang dipilih sebagai unggulan. Pantau terus untuk event kompetisi LKBB berikutnya!
+                  </p>
                 </div>
-                <Button size="sm">
+                <Button variant="outline" size="sm" className="gap-2" asChild>
                   <Link href="/events">
-                    Daftar Sekarang
+                    Lihat Semua Event
+                    <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </Button>
               </div>
-
-              <p className="text-center text-xs text-muted-foreground">
-                {/* Anda bisa menambahkan info pendaftaran dari event jika ada */}
-                Pendaftaran ditutup segera
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-border bg-card/50 backdrop-blur-sm p-6 shadow-xl">
-              <p className="mb-4 text-sm font-semibold text-muted-foreground uppercase tracking-wide">Hitung Mundur</p>
-              <Countdown target={event.date} />
-            </div>
+            )}
 
             <div className="absolute -z-10 left-4 top-4 h-96 w-full rounded-2xl bg-primary/10" />
           </div>

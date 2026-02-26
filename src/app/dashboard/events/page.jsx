@@ -553,13 +553,23 @@ export default function EventsPage() {
   async function handleFeature(ev) {
     try {
       await post(`/events/${ev.id}/feature`);
-      setEvents((prev) =>
-        prev.map((item) => ({ ...item, isFeatured: item.id === ev.id }))
-      );
-      success({
-        title: "Event dipilih sebagai unggulan",
-        description: ev.namaEvent,
-      });
+      if (ev.isFeatured) {
+        // Already featured → unfeature all
+        setEvents((prev) => prev.map((item) => ({ ...item, isFeatured: false })));
+        success({
+          title: "Event unggulan dihapus",
+          description: `${ev.namaEvent} tidak lagi menjadi unggulan`,
+        });
+      } else {
+        // Set this as featured
+        setEvents((prev) =>
+          prev.map((item) => ({ ...item, isFeatured: item.id === ev.id }))
+        );
+        success({
+          title: "Event dipilih sebagai unggulan",
+          description: ev.namaEvent,
+        });
+      }
     } catch (err) {
       toastError({
         title: "Gagal set featured",

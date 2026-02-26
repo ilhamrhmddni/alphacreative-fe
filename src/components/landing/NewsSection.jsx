@@ -28,7 +28,7 @@ export function NewsSection({ news }) {
           {/* Unggulan Besar - Kiri */}
           {highlight ? (
             <Link
-              href={`/news/${highlight.id}`}
+              href={`/news/${highlight.slug || highlight.id}`}
               className="group block overflow-hidden rounded-xl border border-border bg-card shadow-sm transition hover:shadow-lg"
             >
               {highlightImage ? (
@@ -95,7 +95,7 @@ export function NewsSection({ news }) {
                   return (
                     <Link
                       key={item.id ?? `news-${index}`}
-                      href={item?.id ? `/news/${item.id}` : "#"}
+                      href={item?.id ? `/news/${item.slug || item.id}` : "#"}
                       className="flex gap-4 p-5 transition hover:bg-muted/50"
                     >
                       <div className="relative h-24 w-24 flex-shrink-0 overflow-hidden rounded-md border border-border bg-muted">
