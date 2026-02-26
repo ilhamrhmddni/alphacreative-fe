@@ -27,6 +27,9 @@ import {
 
 import { UsersTable } from "@/components/tables/user-table";
 import UserFormDialog from "@/components/form/user-form-dialog";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 const ROLE_FILTERS = [
   { value: "all", label: "Semua role" },
@@ -138,6 +141,7 @@ export default function UsersPage() {
 
   const isOperator = user?.role === "operator";
   const canManage = user?.role === "admin" || isOperator;
+  const { pageItems, startIndex, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
   const operatorLimitMessage = "Operator hanya boleh mengelola user juri.";
 
   function operatorCanManage(target) {
@@ -278,6 +282,7 @@ export default function UsersPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+        <PageHeader title="Pengguna" description="Kelola akun admin, operator, juri, dan peserta." className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -379,13 +384,22 @@ export default function UsersPage() {
             )}
 
             <UsersTable
-              users={filtered}
+              users={pageItems}
               loading={loading}
               canEdit={canManage}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onToggleStatus={handleToggleStatus}
               canManageUser={operatorCanManage}
+              startIndex={startIndex}
+            />
+            <PaginationBar
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
           </CardContent>
         </Card>

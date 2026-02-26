@@ -267,16 +267,16 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
             </h3>
           </button>
           <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-muted-foreground">
-            {event.tanggalMulai && (
+            {event.tanggalEvent && (
               <span className="flex items-center gap-1 bg-muted px-2.5 py-1 rounded-md">
                 <Calendar className="h-3.5 w-3.5" />
-                {formatDate(event.tanggalMulai)}
+                {formatDate(event.tanggalEvent)}
               </span>
             )}
-            {event.lokasi && (
+            {event.tempatEvent && (
               <span className="flex items-center gap-1 bg-muted px-2.5 py-1 rounded-md">
                 <MapPin className="h-3.5 w-3.5" />
-                {event.lokasi}
+                {event.tempatEvent}
               </span>
             )}
           </div>
@@ -386,14 +386,20 @@ function EventListItem({ event, registration, onRegister, onCancel, onViewDetail
               Batalkan
             </Button>
           ) : !isRegistered ? (
-            <Button
-              onClick={() => onRegister(event)}
-              size="sm"
-              className="flex-1 h-9 text-xs"
-            >
-              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-              Daftar Sekarang
-            </Button>
+            event.status === "closed" ? (
+              <p className="flex-1 text-center text-xs text-muted-foreground py-2">
+                Pendaftaran ditutup
+              </p>
+            ) : (
+              <Button
+                onClick={() => onRegister(event)}
+                size="sm"
+                className="flex-1 h-9 text-xs"
+              >
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                Daftar Sekarang
+              </Button>
+            )
           ) : null}
         </div>
       </div>
@@ -407,14 +413,24 @@ export function ParticipantEventList({ events, registrations, onRegister, onCanc
 
   const now = new Date();
 
-  // Separate upcoming and finished events
+  // Separate upcoming (open + belum lewat tanggal) vs finished (closed atau tanggal sudah lewat)
   const upcomingEvents = events
-    .filter((event) => event.tanggalMulai && new Date(event.tanggalMulai) > now)
-    .sort((a, b) => new Date(a.tanggalMulai) - new Date(b.tanggalMulai));
+    .filter(
+      (event) =>
+        event.status !== "closed" &&
+        event.tanggalEvent &&
+        new Date(event.tanggalEvent) > now
+    )
+    .sort((a, b) => new Date(a.tanggalEvent) - new Date(b.tanggalEvent));
 
   const finishedEvents = events
-    .filter((event) => !event.tanggalMulai || new Date(event.tanggalMulai) <= now)
-    .sort((a, b) => new Date(b.tanggalMulai || 0) - new Date(a.tanggalMulai || 0));
+    .filter(
+      (event) =>
+        event.status === "closed" ||
+        !event.tanggalEvent ||
+        new Date(event.tanggalEvent) <= now
+    )
+    .sort((a, b) => new Date(b.tanggalEvent || 0) - new Date(a.tanggalEvent || 0));
 
   const handleViewDetail = (event) => {
     setSelectedEvent(event);

@@ -203,14 +203,12 @@ export default function EventsPage() {
                             {event.venue ? ` • ${event.venue}` : ""}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-primary" />
-                          <span>
-                            {event.participantCount > 0
-                              ? `${event.participantCount} tim terdaftar`
-                              : "Menunggu peserta"}
-                          </span>
-                        </div>
+                        {event.kuota != null && (
+                          <div className="flex items-center gap-2">
+                            <Users className="h-4 w-4 text-primary" />
+                            <span>Kuota {event.kuota} tim</span>
+                          </div>
+                        )}
                         <div className="flex items-center gap-2">
                           <Ticket className="h-4 w-4 text-primary" />
                           <span>{event.biaya == null ? "Gratis" : formatCurrency(event.biaya)}</span>

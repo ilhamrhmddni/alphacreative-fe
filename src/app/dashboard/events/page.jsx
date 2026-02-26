@@ -34,6 +34,9 @@ import EventCategoryFormDialog from "@/components/form/event-category-form-dialo
 import EventRegistrationDialog from "@/components/form/event-registration-dialog";
 import DetailPesertaFormDialog from "@/components/form/detail-peserta-form-dialog";
 import { ParticipantEventList } from "@/components/peserta/participant-event-list";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 // Normalize category data with consistent structure
 function normalizeCategory(category) {
@@ -305,6 +308,9 @@ export default function EventsPage() {
   const noFilteredSubEventResults =
     isSubEventRoute && Boolean(categorySearch.trim()) && filteredSubEvents.length === 0;
 
+  const { pageItems: eventsPageItems, startIndex: eventsStartIndex, currentPage: eventsCurrentPage, pageSize: eventsPageSize, totalPages: eventsTotalPages, total: eventsTotal, goToPage: eventsGoToPage, setPageSize: eventsSetPageSize } = usePagination(filtered);
+  const { pageItems: subEventsPageItems, startIndex: subEventsStartIndex, currentPage: subEventsCurrentPage, pageSize: subEventsPageSize, totalPages: subEventsTotalPages, total: subEventsTotal, goToPage: subEventsGoToPage, setPageSize: subEventsSetPageSize } = usePagination(filteredSubEvents);
+
   const eventFilterOptions = useMemo(
     () =>
       events.map((event) => ({
@@ -493,7 +499,7 @@ export default function EventsPage() {
 
   function handleAddCategoryFromList() {
     if (!selectedSubEventEventId) {
-      setCategoryError("Pilih event terlebih dahulu sebelum menambah sub event.");
+      setCategoryError("Pilih event terlebih dahulu sebelum menambah kategori event.");
       return;
     }
 
@@ -529,7 +535,7 @@ export default function EventsPage() {
   function handleEditCategoryFromList(subEvent) {
     const { eventData, categoryData } = resolveCategoryContext(subEvent);
     if (!eventData) {
-      setCategoryError("Event induk tidak ditemukan untuk sub event ini.");
+      setCategoryError("Event induk tidak ditemukan untuk kategori event ini.");
       return;
     }
     openCategoryDialog(eventData, categoryData);
@@ -538,7 +544,7 @@ export default function EventsPage() {
   function handleDeleteCategoryFromList(subEvent) {
     const { eventData, categoryData } = resolveCategoryContext(subEvent);
     if (!eventData || !categoryData) {
-      setCategoryError("Event atau sub event tidak ditemukan.");
+      setCategoryError("Event atau kategori event tidak ditemukan.");
       return;
     }
     handleDeleteCategory(categoryData, eventData);
@@ -742,9 +748,9 @@ export default function EventsPage() {
       ? `${totalEvents} event terdaftar`
       : "Belum ada event terdaftar. Tambahkan event untuk mengisi kalender.";
   const subEventHeaderDescription = totalEvents
-    ? "Kelola sub event untuk setiap event."
-    : "Buat event terlebih dahulu sebelum menambah sub event.";
-  const headerTitle = isSubEventRoute ? "Sub Event" : "Event";
+    ? "Kelola kategori event untuk setiap event."
+    : "Buat event terlebih dahulu sebelum menambah kategori event.";
+  const headerTitle = isSubEventRoute ? "Kategori Event" : "Event";
   const headerDescription = isSubEventRoute
     ? subEventHeaderDescription
     : eventHeaderDescription;
@@ -752,6 +758,7 @@ export default function EventsPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 sm:px-4 lg:px-2 py-4 sm:py-2 lg:py-2">
+        <PageHeader title={headerTitle} description={headerDescription} className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="px-4 sm:px-6 py-4 border-b border-border space-y-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
@@ -783,7 +790,7 @@ export default function EventsPage() {
                 )}
                 {loading ? (
                   <p className="text-sm text-muted-foreground">
-                    Memuat data sub event...
+                    Memuat data kategori event...
                   </p>
                 ) : events.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
@@ -842,7 +849,7 @@ export default function EventsPage() {
                             className="h-9 flex items-center gap-2 rounded-md text-xs sm:text-sm"
                           >
                             <PlusCircle className="h-4 w-4" />
-                            Tambah Sub Event
+                            Tambah Kategori Event
                           </Button>
                         )}
                       </div>
@@ -873,7 +880,7 @@ export default function EventsPage() {
 
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <Input
-                            placeholder="Cari sub event..."
+                            placeholder="Cari kategori event..."
                             value={categorySearch}
                             onChange={(e) => {
                               setCategorySearch(e.target.value);
@@ -883,7 +890,7 @@ export default function EventsPage() {
                           />
 
                           <div className="flex flex-wrap items-center gap-2 text-xs">
-                            <StatPill label="Total Sub Event" value={totalSubEvents} />
+                            <StatPill label="Total Kategori" value={totalSubEvents} />
                             <StatPill label="Total Kuota" value={totalSubEventQuota} color="amber" />
                             <StatPill label="Total Peserta" value={totalSubEventParticipants} color="emerald" />
                           </div>
@@ -891,30 +898,39 @@ export default function EventsPage() {
 
                         {noFilteredSubEventResults ? (
                           <p className="text-xs text-muted-foreground">
-                            Tidak ada sub event yang cocok dengan pencarian.
+                            Tidak ada kategori event yang cocok dengan pencarian.
                           </p>
                         ) : (
                           <>
                             {filteredSubEventCount !== totalSubEvents && filteredSubEvents.length > 0 && (
                               <p className="text-[11px] text-muted-foreground">
                                 Menampilkan <span className="font-medium">{filteredSubEventCount}</span> dari{" "}
-                                <span className="font-medium">{totalSubEvents}</span> sub event.
+                                <span className="font-medium">{totalSubEvents}</span> kategori event.
                               </p>
                             )}
 
                             <SubEventsTable
-                              items={filteredSubEvents}
+                              items={subEventsPageItems}
                               loading={false}
                               canEdit={canManageCategories}
                               onEdit={handleEditCategoryFromList}
                               onDelete={handleDeleteCategoryFromList}
+                              startIndex={subEventsStartIndex}
+                            />
+                            <PaginationBar
+                              total={subEventsTotal}
+                              pageSize={subEventsPageSize}
+                              currentPage={subEventsCurrentPage}
+                              totalPages={subEventsTotalPages}
+                              onPageChange={subEventsGoToPage}
+                              onPageSizeChange={subEventsSetPageSize}
                             />
                           </>
                         )}
                       </>
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        Pilih event untuk melihat dan mengelola daftar sub event.
+                        Pilih event untuk melihat dan mengelola daftar kategori event.
                       </p>
                     )}
                   </>
@@ -1003,12 +1019,21 @@ export default function EventsPage() {
 
                 <div className="mt-1">
                   <EventsTable
-                    events={filtered}
+                    events={eventsPageItems}
                     loading={loading}
                     canEdit={canEditEvents}
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onFeature={handleFeature}
+                    startIndex={eventsStartIndex}
+                  />
+                  <PaginationBar
+                    total={eventsTotal}
+                    pageSize={eventsPageSize}
+                    currentPage={eventsCurrentPage}
+                    totalPages={eventsTotalPages}
+                    onPageChange={eventsGoToPage}
+                    onPageSizeChange={eventsSetPageSize}
                   />
                 </div>
               </>

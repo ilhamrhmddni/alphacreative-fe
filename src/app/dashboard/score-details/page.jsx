@@ -26,6 +26,9 @@ import {
 
 import { ScoreDetailTable } from "@/components/tables/score-detail-table";
 import ScoreDetailFormDialog from "@/components/form/score-detail-form-dialog";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 const SCORE_DETAIL_PAGE_ENABLED = false;
 
@@ -260,20 +263,20 @@ export default function ScoreDetailsPage() {
   const participantOptions = useMemo(() => {
     const map = new Map();
     scores.forEach((score) => {
-      if (score.pesertaId) {
-        map.set(
-          String(score.pesertaId),
-          score.peserta?.namaTim ||
-            score.peserta?.namaPerwakilan ||
-            `Peserta #${score.pesertaId}`
-        );
-      }
+      if (!score.pesertaId) return;
+      if (eventFilter !== "all" && String(score.eventId) !== eventFilter) return;
+      map.set(
+        String(score.pesertaId),
+        score.peserta?.namaTim ||
+          score.peserta?.namaPerwakilan ||
+          `Peserta #${score.pesertaId}`
+      );
     });
     return Array.from(map.entries()).map(([value, label]) => ({
       value,
       label,
     }));
-  }, [scores]);
+  }, [scores, eventFilter]);
 
   if (initializing || !user) {
     return (
@@ -381,9 +384,16 @@ export default function ScoreDetailsPage() {
     juriFilter !== "all" ||
     participantFilter !== "all";
 
+  const { pageItems: scoresPage, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(visibleScores);
+  const detailsPage = useMemo(() => {
+    const pageScoreIds = new Set(scoresPage.map((s) => s.id).filter(Boolean));
+    return filteredDetails.filter((d) => pageScoreIds.has(d.scoreId));
+  }, [scoresPage, filteredDetails]);
+
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+        <PageHeader title="Detail Penilaian" description="Kelola kriteria dan detail penilaian per peserta." className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -419,7 +429,7 @@ export default function ScoreDetailsPage() {
                 </div>
 
                 <div className="flex w-full flex-wrap gap-2">
-                  <Select value={eventFilter} onValueChange={setEventFilter}>
+                  <Select value={eventFilter} onValueChange={(v) => { setEventFilter(v); setParticipantFilter("all"); }}>
                     <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua event" />
                     </SelectTrigger>
@@ -449,10 +459,11 @@ export default function ScoreDetailsPage() {
 
                   <Select
                     value={participantFilter}
+                    disabled={eventFilter === "all"}
                     onValueChange={setParticipantFilter}
                   >
                     <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
-                      <SelectValue placeholder="Semua peserta" />
+                      <SelectValue placeholder={eventFilter === "all" ? "Pilih event dulu" : "Semua peserta"} />
                     </SelectTrigger>
                     <SelectContent className="rounded-md border border-border bg-card shadow-md">
                       <SelectItem value="all">Semua peserta</SelectItem>
@@ -501,14 +512,22 @@ export default function ScoreDetailsPage() {
             )}
 
             <ScoreDetailTable
-              items={filteredDetails}
-              scores={visibleScores}
+              items={detailsPage}
+              scores={scoresPage}
               loading={loading}
               canEdit={canManage}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onDeleteScore={handleDeleteScore}
               onAddDetail={handleAddForScore}
+            />
+            <PaginationBar
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
           </CardContent>
         </Card>

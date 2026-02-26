@@ -12,6 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GalleryTable } from "@/components/tables/gallery-table";
 import GalleryFormDialog from "@/components/form/gallery-form-dialog";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 function sortGalleryItems(items) {
   if (!Array.isArray(items)) return [];
@@ -143,11 +146,13 @@ export default function GalleryPage() {
   }
 
   const canManage = user.role === "admin" || user.role === "operator";
+  const { pageItems, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filteredItems);
   const totalItems = Array.isArray(items) ? items.length : 0;
 
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+        <PageHeader title="Galeri" description="Kelola foto yang tampil pada landing page." className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -187,11 +192,19 @@ export default function GalleryPage() {
             {error && <p className="text-[11px] text-red-500">{error}</p>}
 
             <GalleryTable
-              items={filteredItems}
+              items={pageItems}
               loading={loading}
               canEdit={canManage}
               onEdit={handleEdit}
               onDelete={handleDelete}
+            />
+            <PaginationBar
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
           </CardContent>
         </Card>

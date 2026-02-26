@@ -14,8 +14,8 @@ import {
 
 const createInitialForm = (initialData) => ({
   eventId: initialData?.eventId ? String(initialData.eventId) : "",
+  categoryId: initialData?.peserta?.eventCategoryId ? String(initialData.peserta.eventCategoryId) : "",
   pesertaId: initialData?.pesertaId ? String(initialData.pesertaId) : "",
-  juara: initialData?.juara ?? "",
   kategori: initialData?.kategori ?? "",
   berkasLink: initialData?.berkasLink ?? "",
 });
@@ -31,21 +31,40 @@ export default function JuaraFormDialog({
 }) {
   const isEdit = Boolean(initialData);
   const eventOptions = useMemo(() => events ?? [], [events]);
+  const hasAnyCategories = useMemo(
+    () => (peserta ?? []).some((p) => p.eventCategoryId),
+    [peserta]
+  );
 
-  const getPesertaOptions = (eventId) => {
-    if (!peserta?.length) return [];
-    if (!eventId) {
-      return peserta.map((item) => ({
-        value: String(item.id),
-        label: `${item.namaTim} • ${item.event?.namaEvent || "Event ?"}`,
-      }));
-    }
-    return peserta
-      .filter((item) => String(item.eventId) === eventId)
+  const getCategoryOptions = (eventId) => {
+    if (!peserta?.length || !eventId) return [];
+    const eventPeserta = peserta.filter((item) => String(item.eventId) === eventId);
+    const seen = new Set();
+    return eventPeserta
+      .filter((item) => item.eventCategory)
+      .filter((item) => {
+        if (seen.has(item.eventCategoryId)) return false;
+        seen.add(item.eventCategoryId);
+        return true;
+      })
       .map((item) => ({
-        value: String(item.id),
-        label: `${item.namaTim} • ${item.event?.namaEvent || "Event ?"}`,
+        value: String(item.eventCategoryId),
+        label: item.eventCategory?.name || "Tanpa nama",
       }));
+  };
+
+  const getPesertaOptions = (eventId, categoryId) => {
+    if (!peserta?.length) return [];
+    let filtered = eventId
+      ? peserta.filter((item) => String(item.eventId) === eventId)
+      : peserta;
+    if (categoryId) {
+      filtered = filtered.filter((item) => String(item.eventCategoryId) === categoryId);
+    }
+    return filtered.map((item) => ({
+      value: String(item.id),
+      label: item.namaTim,
+    }));
   };
 
   const handleSubmit = async (form) => {
@@ -54,12 +73,11 @@ export default function JuaraFormDialog({
     const payload = {
       eventId: Number(form.eventId),
       pesertaId: Number(form.pesertaId),
-      juara: form.juara?.trim(),
       kategori: form.kategori?.trim() || null,
       berkasLink: form.berkasLink?.trim() || null,
     };
 
-    if (!payload.eventId || !payload.pesertaId || !payload.juara) return;
+    if (!payload.eventId || !payload.pesertaId) return;
     await onSubmit(payload);
   };
 
@@ -70,8 +88,8 @@ export default function JuaraFormDialog({
       title={isEdit ? "Edit Data Juara" : "Tambah Data Juara"}
       description={
         isEdit
-          ? "Perbarui posisi juara atau kategori tim."
-          : "Catat juara baru untuk event yang telah selesai."
+          ? "Perbarui data hasil lomba tim."
+          : "Catat hasil lomba tim untuk event yang telah selesai."
       }
       initialData={initialData}
       createInitialForm={createInitialForm}
@@ -80,7 +98,8 @@ export default function JuaraFormDialog({
       submitLabel={isEdit ? "Simpan Perubahan" : "Tambah Juara"}
     >
       {({ form, handleChange }) => {
-        const pesertaOptions = getPesertaOptions(form.eventId);
+        const categoryOptions = getCategoryOptions(form.eventId);
+        const pesertaOptions = getPesertaOptions(form.eventId, form.categoryId);
 
         return (
           <>
@@ -92,6 +111,7 @@ export default function JuaraFormDialog({
                 value={form.eventId}
                 onValueChange={(value) => {
                   handleChange("eventId", value);
+                  handleChange("categoryId", "");
                   handleChange("pesertaId", "");
                 }}
               >
@@ -112,6 +132,39 @@ export default function JuaraFormDialog({
                 </p>
               )}
             </div>
+
+            {hasAnyCategories && (
+              <div className="space-y-2">
+                <Label className="text-xs font-medium text-foreground sm:text-sm">
+                  Kategori Event
+                </Label>
+                <Select
+                  value={form.categoryId}
+                  disabled={!form.eventId}
+                  onValueChange={(value) => {
+                    handleChange("categoryId", value);
+                    handleChange("pesertaId", "");
+                  }}
+                >
+                  <SelectTrigger className="h-9 rounded-md border-border text-xs sm:text-sm">
+                    <SelectValue
+                      placeholder={
+                        form.eventId
+                          ? "Pilih kategori event"
+                          : "Pilih event terlebih dahulu"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                    {categoryOptions.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-xs font-medium text-foreground sm:text-sm">
@@ -139,22 +192,9 @@ export default function JuaraFormDialog({
               </Select>
               {form.eventId && !pesertaOptions.length && (
                 <p className="text-[11px] text-amber-600">
-                  Tidak ada peserta untuk event ini.
+                  Tidak ada peserta untuk kategori ini.
                 </p>
               )}
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs font-medium text-foreground sm:text-sm">
-                Posisi Juara <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                required
-                value={form.juara}
-                onChange={(e) => handleChange("juara", e.target.value)}
-                placeholder="Juara 1, Juara Harapan, dsb"
-                className="h-9 rounded-md border-border text-xs placeholder:text-muted-foreground sm:text-sm"
-              />
             </div>
 
             <div className="space-y-2">

@@ -22,6 +22,9 @@ import {
 
 import { NewsTable } from "@/components/tables/news-table";
 import NewsFormDialog from "@/components/form/news-form-dialog";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 export default function BeritaPage() {
   const router = useRouter();
@@ -221,6 +224,7 @@ export default function BeritaPage() {
   }
 
   const canManage = user.role === "admin" || user.role === "operator";
+  const { pageItems, startIndex, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
   const safeNews = Array.isArray(news) ? news : [];
   const totalNews = safeNews.length;
   const newsThisMonth = safeNews.filter((item) => isSameMonth(item.tanggal)).length;
@@ -229,6 +233,7 @@ export default function BeritaPage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+        <PageHeader title="Berita & Pengumuman" description="Kelola informasi dan pengumuman untuk publik." className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -315,12 +320,21 @@ export default function BeritaPage() {
             )}
 
             <NewsTable
-              items={filtered}
+              items={pageItems}
               loading={loading}
               canEdit={canManage}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onSelect={setSelectedNews}
+              startIndex={startIndex}
+            />
+            <PaginationBar
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
 
             <NewsReader item={selectedNews} loading={loading} />

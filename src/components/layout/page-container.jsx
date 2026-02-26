@@ -2,10 +2,10 @@
 
 export default function PageContainer({ children }) {
   return (
-    <div className="w-full px-4 py-6 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
+    <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+      <div className="space-y-4">
         {children}
       </div>
-    </div>
+    </main>
   );
 }

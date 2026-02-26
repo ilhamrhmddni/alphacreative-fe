@@ -44,6 +44,20 @@ function formatCategoryLabel(event) {
     .join(", ");
 }
 
+/**
+ * Jika tanggalEvent sudah lewat dan status masih "open",
+ * tampilkan sebagai "closed" tanpa harus tunggu DB update.
+ */
+function resolveEffectiveStatus(ev) {
+  if (ev.status === "open" && ev.tanggalEvent) {
+    const tanggal = new Date(ev.tanggalEvent);
+    if (!Number.isNaN(tanggal.getTime()) && tanggal < new Date()) {
+      return "closed";
+    }
+  }
+  return ev.status || null;
+}
+
 export function EventsTable({
   events,
   loading,
@@ -106,10 +120,10 @@ export function EventsTable({
                 </span>
                 <span
                   className={`text-[10px] px-2 py-0.5 rounded-full border capitalize ${getStatusBadgeClasses(
-                    ev.status
+                    resolveEffectiveStatus(ev)
                   ).className}`}
                 >
-                  {ev.status || "draft"}
+                  {resolveEffectiveStatus(ev) || "draft"}
                 </span>
               </div>
             </div>
@@ -260,10 +274,10 @@ export function EventsTable({
                   <TableCell className="px-4 py-3 text-center align-top">
                     <span
                       className={`inline-flex items-center justify-center text-xs px-2 py-0.5 rounded-full border capitalize ${getStatusBadgeClasses(
-                        ev.status
+                        resolveEffectiveStatus(ev)
                       ).className}`}
                     >
-                      {ev.status || "-"}
+                      {resolveEffectiveStatus(ev) || "-"}
                     </span>
                   </TableCell>
 

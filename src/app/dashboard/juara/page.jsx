@@ -30,6 +30,8 @@ import {
 import { JuaraTable } from "@/components/tables/juara-table";
 import JuaraFormDialog from "@/components/form/juara-form-dialog";
 import { resolveScoreValue } from "@/lib/utils";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 const SYSTEM_USER = {
   username: "Sistem",
@@ -61,7 +63,8 @@ export default function JuaraPage() {
 
   const [filterText, setFilterText] = useState("");
   const [eventFilter, setEventFilter] = useState("all");
-  const [rankFilter, setRankFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [berkasFilter, setBerkasFilter] = useState("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingJuara, setEditingJuara] = useState(null);
@@ -265,14 +268,18 @@ export default function JuaraPage() {
       data = data.filter((item) => String(item.eventId) === eventFilter);
     }
 
-    if (rankFilter !== "all") {
-      data = data.filter(
-        (item) => (item.juara || "").toLowerCase() === rankFilter
-      );
+    if (categoryFilter !== "all") {
+      data = data.filter((item) => String(item.peserta?.eventCategoryId) === categoryFilter);
+    }
+
+    if (berkasFilter === "ada") {
+      data = data.filter((item) => Boolean(item.berkasLink));
+    } else if (berkasFilter === "kosong") {
+      data = data.filter((item) => !item.berkasLink);
     }
 
     setFiltered(data);
-  }, [combinedJuara, filterText, eventFilter, rankFilter]);
+  }, [combinedJuara, filterText, eventFilter, categoryFilter, berkasFilter]);
 
   const canManage = user?.role === "admin" || user?.role === "operator";
   const isParticipant = user?.role === "peserta";
@@ -295,20 +302,24 @@ export default function JuaraPage() {
     [events]
   );
 
-  const rankOptions = useMemo(() => {
-    const set = new Map();
-    combinedJuara.forEach((item) => {
-      const normalized = (item.juara || "").toLowerCase();
-      if (!normalized) return;
-      if (!set.has(normalized)) {
-        set.set(normalized, item.juara);
-      }
-    });
-    return Array.from(set.entries()).map(([value, label]) => ({
-      value,
-      label,
-    }));
-  }, [combinedJuara]);
+  const categoryOptions = useMemo(() => {
+    // Bangun dari `peserta` state (dari /peserta endpoint) yang sudah include eventCategory
+    // sehingga tidak bergantung pada data peserta di juara/score endpoint
+    const seen = new Set();
+    return peserta
+      .filter((p) => p.eventCategoryId && p.eventCategory)
+      .filter((p) => {
+        const key = `${p.eventId}-${p.eventCategoryId}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .map((p) => ({
+        value: String(p.eventCategoryId),
+        eventId: String(p.eventId),
+        label: p.eventCategory.name,
+      }));
+  }, [peserta]);
 
   if (initializing || !user) {
     return (
@@ -480,7 +491,9 @@ export default function JuaraPage() {
   );
 
   const filtersActive =
-    Boolean(filterText) || eventFilter !== "all" || rankFilter !== "all";
+    Boolean(filterText) || eventFilter !== "all" || categoryFilter !== "all" || berkasFilter !== "all";
+
+  const { pageItems, startIndex, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
 
   return (
     <PageContainer>
@@ -511,7 +524,7 @@ export default function JuaraPage() {
                 </div>
 
                 <div className="flex w-full flex-wrap gap-2">
-                  <Select value={eventFilter} onValueChange={setEventFilter}>
+                  <Select value={eventFilter} onValueChange={(v) => { setEventFilter(v); setCategoryFilter("all"); }}>
                     <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[180px] sm:text-sm">
                       <SelectValue placeholder="Semua event" />
                     </SelectTrigger>
@@ -525,17 +538,36 @@ export default function JuaraPage() {
                     </SelectContent>
                   </Select>
 
-                  <Select value={rankFilter} onValueChange={setRankFilter}>
-                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[150px] sm:text-sm">
-                      <SelectValue placeholder="Semua juara" />
+                  {categoryOptions.length > 0 && (
+                    <Select
+                      value={categoryFilter}
+                      disabled={eventFilter === "all"}
+                      onValueChange={setCategoryFilter}
+                    >
+                      <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[160px] sm:text-sm">
+                        <SelectValue placeholder={eventFilter === "all" ? "Pilih event dulu" : "Semua kategori"} />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-md border border-border bg-card shadow-md">
+                        <SelectItem value="all">Semua kategori</SelectItem>
+                        {categoryOptions
+                          .filter((opt) => eventFilter === "all" || opt.eventId === eventFilter)
+                          .map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <Select value={berkasFilter} onValueChange={setBerkasFilter}>
+                    <SelectTrigger className="h-9 w-full rounded-md border-border text-xs sm:w-[160px] sm:text-sm">
+                      <SelectValue placeholder="Semua berkas" />
                     </SelectTrigger>
                     <SelectContent className="rounded-md border border-border bg-card shadow-md">
-                      <SelectItem value="all">Semua juara</SelectItem>
-                      {rankOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="all">Semua berkas</SelectItem>
+                      <SelectItem value="ada">Berkas sudah diisi</SelectItem>
+                      <SelectItem value="kosong">Berkas belum diisi</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -547,7 +579,8 @@ export default function JuaraPage() {
                       onClick={() => {
                         setFilterText("");
                         setEventFilter("all");
-                        setRankFilter("all");
+                        setCategoryFilter("all");
+                        setBerkasFilter("all");
                       }}
                     >
                       Reset
@@ -583,13 +616,22 @@ export default function JuaraPage() {
             )}
 
             <JuaraTable
-              items={filtered}
+              items={pageItems}
               loading={loading}
               canEdit={canManage}
               onEdit={canManage ? handleEdit : undefined}
               onDelete={canManage ? handleDelete : undefined}
               onConfirmAuto={canManage ? handleConfirmAuto : undefined}
               confirmingId={confirmingId}
+              startIndex={startIndex}
+            />
+            <PaginationBar
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
           </CardContent>
         </Card>

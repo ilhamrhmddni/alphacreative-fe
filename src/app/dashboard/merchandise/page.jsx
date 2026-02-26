@@ -25,6 +25,9 @@ import {
 import MerchandiseFormDialog from "@/components/form/merchandise-form-dialog";
 import { MerchandiseTable } from "@/components/tables/merchandise-table";
 import { PesertaMerchandiseCard } from "@/components/merchandise/peserta-merchandise-card";
+import PageHeader from "@/components/layout/page-header";
+import { usePagination } from "@/hooks/usePagination";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
 function normalizeMerchandisePayload(payload) {
   if (!payload) return [];
@@ -137,6 +140,7 @@ export default function MerchandisePage() {
   }, []);
 
   const canManage = user && (user.role === "admin" || user.role === "operator");
+  const { pageItems, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
 
   const sanitizeWhatsapp = useCallback((number) => {
     if (!number) return "";
@@ -276,6 +280,7 @@ export default function MerchandisePage() {
     return (
       <div className="min-h-screen">
         <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+          <PageHeader title="Merchandise" description="Jelajahi dan pesan merchandise resmi Alpha Creative." className="mb-4" />
           <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
               <div>
@@ -346,6 +351,7 @@ export default function MerchandisePage() {
   return (
     <div className="min-h-screen">
       <main className="container mx-auto px-3 py-4 sm:px-4 lg:px-2">
+        <PageHeader title="Merchandise" description="Kelola produk resmi Alpha Creative yang tampil di landing page." className="mb-4" />
         <Card className="w-full overflow-hidden rounded-xl border border-border bg-card shadow-sm">
           <CardHeader className="border-b border-border px-4 py-4 sm:px-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -411,13 +417,21 @@ export default function MerchandisePage() {
             {error && <p className="text-[11px] text-red-500">{error}</p>}
 
             <MerchandiseTable
-              items={filtered}
+              items={pageItems}
               loading={loading}
               canEdit={canManage}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onTogglePublish={handleTogglePublish}
               onSelect={setSelected}
+            />
+            <PaginationBar
+              total={total}
+              pageSize={pageSize}
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              onPageSizeChange={setPageSize}
             />
 
             <MerchandiseInfo item={selected} loading={loading} />
