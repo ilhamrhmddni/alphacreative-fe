@@ -33,28 +33,6 @@ import { PaginationBar } from "@/components/ui/pagination-bar";
 const SCORE_DETAIL_PAGE_ENABLED = false;
 
 export default function ScoreDetailsPage() {
-  if (!SCORE_DETAIL_PAGE_ENABLED) {
-    return (
-      <div className="min-h-screen">
-        <main className="container mx-auto px-3 py-6 sm:px-4 lg:px-6">
-          <Card className="border border-dashed border-border bg-muted">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-foreground">
-                Detail score dinonaktifkan sementara
-              </CardTitle>
-              <CardDescription className="text-sm text-muted-foreground">
-                Modul detail score tidak tersedia. Silakan hubungi admin untuk mengaktifkannya kembali.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Data sebelumnya tetap aman dalam sistem, namun pengelolaan detail score tidak dapat dilakukan saat ini.
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
   const router = useRouter();
   const { user, initializing } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
@@ -278,6 +256,40 @@ export default function ScoreDetailsPage() {
     }));
   }, [scores, eventFilter]);
 
+  const filtersActive =
+    Boolean(filterText) ||
+    eventFilter !== "all" ||
+    juriFilter !== "all" ||
+    participantFilter !== "all";
+
+  const { pageItems: scoresPage, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(visibleScores);
+  const detailsPage = useMemo(() => {
+    const pageScoreIds = new Set(scoresPage.map((s) => s.id).filter(Boolean));
+    return filteredDetails.filter((d) => pageScoreIds.has(d.scoreId));
+  }, [scoresPage, filteredDetails]);
+
+  if (!SCORE_DETAIL_PAGE_ENABLED) {
+    return (
+      <div className="min-h-screen">
+        <main className="container mx-auto px-3 py-6 sm:px-4 lg:px-6">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-foreground">
+                Detail score dinonaktifkan sementara
+              </CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Modul detail score tidak tersedia. Silakan hubungi admin untuk mengaktifkannya kembali.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Data sebelumnya tetap aman dalam sistem, namun pengelolaan detail score tidak dapat dilakukan saat ini.
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   if (initializing || !user) {
     return (
       <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
@@ -377,18 +389,6 @@ export default function ScoreDetailsPage() {
       });
     }
   }
-
-  const filtersActive =
-    Boolean(filterText) ||
-    eventFilter !== "all" ||
-    juriFilter !== "all" ||
-    participantFilter !== "all";
-
-  const { pageItems: scoresPage, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(visibleScores);
-  const detailsPage = useMemo(() => {
-    const pageScoreIds = new Set(scoresPage.map((s) => s.id).filter(Boolean));
-    return filteredDetails.filter((d) => pageScoreIds.has(d.scoreId));
-  }, [scoresPage, filteredDetails]);
 
   return (
     <div className="min-h-screen">

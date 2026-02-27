@@ -46,28 +46,6 @@ import { PaginationBar } from "@/components/ui/pagination-bar";
 const SCORE_PAGE_ENABLED = false;
 
 export default function ScoresPage() {
-  if (!SCORE_PAGE_ENABLED) {
-    return (
-      <div className="min-h-screen">
-        <main className="container mx-auto px-3 py-6 sm:px-4 lg:px-6">
-          <Card className="border border-dashed border-border bg-muted">
-            <CardHeader>
-              <CardTitle className="text-base font-semibold text-foreground">
-                Penilaian dinonaktifkan sementara
-              </CardTitle>
-              <CardDescription className="text-sm text-muted-foreground">
-                Admin sedang menonaktifkan modul score. Hubungi admin bila memerlukan akses.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Data score lama tetap tersimpan, namun halaman ini tidak dapat digunakan sampai fitur diaktifkan kembali.
-            </CardContent>
-          </Card>
-        </main>
-      </div>
-    );
-  }
-
   const router = useRouter();
   const { user, initializing } = useAuth();
   const { success: toastSuccess, error: toastError } = useToast();
@@ -283,6 +261,36 @@ export default function ScoresPage() {
     }));
   }, [peserta, eventFilter]);
 
+  const filtersActive =
+    Boolean(filterText) ||
+    eventFilter !== "all" ||
+    juriFilter !== "all" ||
+    participantFilter !== "all";
+
+  const { pageItems, startIndex, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
+
+  if (!SCORE_PAGE_ENABLED) {
+    return (
+      <div className="min-h-screen">
+        <main className="container mx-auto px-3 py-6 sm:px-4 lg:px-6">
+          <Card className="border border-dashed border-border bg-muted">
+            <CardHeader>
+              <CardTitle className="text-base font-semibold text-foreground">
+                Penilaian dinonaktifkan sementara
+              </CardTitle>
+              <CardDescription className="text-sm text-muted-foreground">
+                Admin sedang menonaktifkan modul score. Hubungi admin bila memerlukan akses.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              Data score lama tetap tersimpan, namun halaman ini tidak dapat digunakan sampai fitur diaktifkan kembali.
+            </CardContent>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   if (initializing || !user) {
     return (
       <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
@@ -368,14 +376,6 @@ export default function ScoresPage() {
       });
     }
   }
-
-  const filtersActive =
-    Boolean(filterText) ||
-    eventFilter !== "all" ||
-    juriFilter !== "all" ||
-    participantFilter !== "all";
-
-  const { pageItems, startIndex, currentPage, pageSize, totalPages, total, goToPage, setPageSize } = usePagination(filtered);
 
   return (
     <div className="min-h-screen">
